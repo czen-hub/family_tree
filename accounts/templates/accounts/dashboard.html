@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LinkRoot - Profile</title>
+</head>
+<body>
+    <h1>LinkRoot</h1>
+    <hr>
+    <a href="{% url 'home' %}">Home</a> |
+    <a href="{% url 'profile' %}">Profile</a> |
+    <a href="{% url 'add_member' %}">Add Member</a> |
+    <a href="{% url 'family_list' %}">All Members</a> |
+    <a href="{% url 'visual_tree' %}">Visual Tree</a> |
+    <a href="{% url 'logout' %}">Logout</a>
+    <hr>
+
+    <h2>My Profile</h2>
+
+    {% if member_data %}
+        {% for data in member_data %}
+            <hr>
+            <p><a href="{% url 'family_detail' data.member.pk %}">{{ data.member.first_name }} {{ data.member.middle_name }} {{ data.member.last_name }}</a></p>
+            <p>Date of Birth: {{ data.member.date_of_birth }}</p>
+            <p>Marital Status: {{ data.member.marital_status }}</p>
+            {% if data.member.marital_status == 'Married' %}
+                <p>Spouse: {{ data.member.spouse_name }}</p>
+            {% endif %}
+            <p>Address: <a href="{% url 'address_detail' data.member.address %}">{{ data.member.address }}</a></p>
+            {% if data.member.father_name %}
+                <p>Father: <a href="{% url 'member_search' data.member.father_name %}">{{ data.member.father_name }}</a></p>
+            {% endif %}
+            {% if data.member.mother_name %}
+                <p>Mother: <a href="{% url 'member_search' data.member.mother_name %}">{{ data.member.mother_name }}</a></p>
+            {% endif %}
+            {% if data.member.grandfather_name %}
+                <p>Grandfather: <a href="{% url 'member_search' data.member.grandfather_name %}">{{ data.member.grandfather_name }}</a></p>
+            {% endif %}
+            {% if data.member.grandmother_name %}
+                <p>Grandmother: <a href="{% url 'member_search' data.member.grandmother_name %}">{{ data.member.grandmother_name }}</a></p>
+            {% endif %}
+            {% if data.member.marital_status == 'Married' %}
+                <h4>Children</h4>
+                {% if data.children %}
+                    {% for child in data.children %}
+                        <p><a href="{% url 'family_detail' child.pk %}">{{ child.first_name }} {{ child.last_name }}</a></p>
+                    {% endfor %}
+                {% else %}
+                    <p>No children found.</p>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <p>No profile found. <a href="{% url 'add_member' %}">Add yourself here!</a></p>
+    {% endif %}
+
+</body>
+</html>

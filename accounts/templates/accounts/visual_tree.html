@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LinkRoot - Visual Tree</title>
+    <style>
+        .tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .node {
+            border: 2px solid black;
+            padding: 10px 20px;
+            margin: 5px;
+            text-align: center;
+            cursor: pointer;
+            background: white;
+            text-decoration: none;
+            color: black;
+            display: inline-block;
+        }
+        .node:hover {
+            background: #f0f0f0;
+        }
+        .level {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: relative;
+            margin: 10px 0;
+        }
+        .connector {
+            width: 2px;
+            height: 30px;
+            background: black;
+            margin: 0 auto;
+        }
+        .horizontal-line {
+            height: 2px;
+            background: black;
+            margin: 0 10px;
+            align-self: center;
+        }
+        .family-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+            border: 1px dashed #ccc;
+            padding: 10px;
+        }
+        .parents {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .children-row {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        h1, h2 { text-align: center; }
+        nav { text-align: center; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>LinkRoot</h1>
+    <nav>
+        <a href="{% url 'home' %}">Home</a> |
+        <a href="{% url 'profile' %}">Profile</a> |
+        <a href="{% url 'add_member' %}">Add Member</a> |
+        <a href="{% url 'family_list' %}">All Members</a> |
+        <a href="{% url 'visual_tree' %}">Visual Tree</a> |
+        <a href="{% url 'logout' %}">Logout</a>
+    </nav>
+    <hr>
+
+    <h2>Family Tree</h2>
+
+    <div class="tree">
+        {% for member in members %}
+            {% if not member.father_name and not member.mother_name %}
+                <!-- Root members (no parents registered) -->
+                <div class="family-group">
+                    <div class="parents">
+                        <a href="{% url 'family_detail' member.pk %}" class="node">
+                            {{ member.first_name }} {{ member.last_name }}
+                            {% if member.marital_status == 'Married' %}
+                                + {{ member.spouse_name }}
+                            {% endif %}
+                        </a>
+                    </div>
+                    <div class="connector"></div>
+                    <div class="children-row">
+                        {% for child in members %}
+                            {% if child.father_name == member.first_name|add:' '|add:member.last_name %}
+                                <a href="{% url 'family_detail' child.pk %}" class="node">
+                                    {{ child.first_name }} {{ child.last_name }}
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+</body>
+</html>
