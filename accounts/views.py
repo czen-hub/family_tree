@@ -155,3 +155,34 @@ def member_search(request, name):
 def visual_tree(request):
     members = FamilyMember.objects.all()
     return render(request, 'accounts/visual_tree.html', {'members': members})
+
+@login_required
+def visual_tree(request):
+    all_members = FamilyMember.objects.all()
+
+    def get_children(member):
+        full_name = f"{member.first_name} {member.last_name}"
+        full_name_middle = f"{member.first_name} {member.middle_name} {member.last_name}"
+        return FamilyMember.objects.filter(
+            father_name=full_name
+        ) | FamilyMember.objects.filter(
+            father_name=full_name_middle
+        )
+
+    def is_root(member):
+        if not member.father_name:
+            return True
+        father_first = member.father_name.split(' ')[0]
+        return not FamilyMember.objects.filter(first_name=father_first).exists()
+
+    def build_tree(member):
+        children = get_children(member)
+        return {
+            'member': member,
+            'children': [build_tree(child) for child in children],
+            'spouse': member.spouse_name if member.marital_status == 'Married' else None,
+        }
+
+    roots = [build_tree(m) for m in all_members if is_root(m)]
+
+    return render(request, 'accounts/visual_tree.html', {'roots': roots})

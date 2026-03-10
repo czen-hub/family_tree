@@ -38,7 +38,7 @@
     <h3>Siblings</h3>
     {% if siblings %}
         {% for sibling in siblings %}
-            <p><a href="{% url 'family_detail' sibling.pk %}">{{ sibling.first_name }} {{ sibling.last_name }}</a></p>
+            <p><a href="{% url 'family_detail' sibling.pk %}">{{ sibling.first_name }} {{ sibling.middle_name }} {{ sibling.last_name }}</a></p>
         {% endfor %}
     {% else %}
         <p>No siblings found.</p>
@@ -57,10 +57,10 @@
     {% endif %}
 
     <hr>
-    <h3>Relatives (Same Grandfather)</h3>
+    <h3>Same Grandfather</h3>
     {% if relatives %}
         {% for relative in relatives %}
-            <p><a href="{% url 'family_detail' relative.pk %}">{{ relative.first_name }} {{ relative.last_name }}</a></p>
+            <p><a href="{% url 'family_detail' relative.pk %}">{{ relative.first_name }} {{ relative.middle_name }} {{ relative.last_name }}</a></p>
         {% endfor %}
     {% else %}
         <p>No relatives found.</p>

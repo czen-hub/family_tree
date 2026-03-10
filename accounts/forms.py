@@ -28,19 +28,23 @@ COUNTRY_CHOICES = [
 GRANDFATHER_CHOICES = [
     ('', '-- Select Grandfather --'),
     ('Karsang Dawa', 'Karsang Dawa'),
-    ('Dindu Lama', 'Dindu Lama'),
+    ('Dindu Lama Chyaba', 'Dindu Lama Chyaba'),
     ('Pemba Lama', 'Pemba Lama'),
     ('Temba Lama', 'Temba Lama'),
-    ('Mike Sherpa', 'Mike Sherpa')
+    ('Mike Sherpa', 'Mike Sherpa'),
+    ('AAA Sherpa', 'AAA Sherpa'),
+    ('ZZZ', 'ZZZ')
 ]
 
 GRANDMOTHER_CHOICES = [
     ('', '-- Select Grandmother --'),
     ('xyz', 'xyz'),
-    ('Kami Dolma', 'Kami Dolma'),
+    ('Kami Dolma Shangba', 'Kami Dolma Shangba'),
     ('QQQ Lhamu', 'QQQ Lhamu'),
     ('Maya Lhamu', 'Maya Lhamu'),
-    ('Tena Sherpa', 'Tena Sherpa')
+    ('Tena Sherpa', 'Tena Sherpa'),
+    ('BBB Sherpa', 'BBB Sherpa'),
+    ('YYY Sherpa', 'YYY Sherpa')
 
 ]
 
