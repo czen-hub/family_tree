@@ -1,26 +1,33 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>LinkRoot - Add Member</title>
-</head>
-<body>
-    <h1>LinkRoot</h1>
-    <hr>
-    <a href="{% url 'home' %}">Home</a> |
-    <a href="{% url 'profile' %}">Profile</a> |
-    <a href="{% url 'family_list' %}">All Member</a> |
-    <a href="{% url 'add_member' %}">Add Member</a> |
-    <a href="{% url 'visual_tree' %}">Visual Tree</a> |
-    <a href="{% url 'logout' %}">Logout</a>
-    <hr>
-
-    <h2>Add New Family Member</h2>
-
+{% extends 'accounts/base.html' %} {% block title %}LINK ROOT — Add Member{%
+endblock %} {% block content %}
+<div class="main" style="max-width: 640px">
+  <div class="page-header">
+    <div class="page-title">Add Family Member</div>
+    <div class="page-subtitle">Register a new member to the tree</div>
+  </div>
+  <div class="card">
     <form method="POST">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Add Member</button>
+      {% csrf_token %} {{ form.as_p }}
+      <div
+        style="
+          margin-top: 1.5rem;
+          padding-top: 1.5rem;
+          border-top: 1px solid var(--border);
+        "
+      >
+        <button type="submit" class="btn">Add to Family Tree</button>
+        <a
+          href="{% url 'family_list' %}"
+          class="btn"
+          style="
+            margin-left: 0.75rem;
+            border-color: var(--border);
+            color: var(--text-dim);
+          "
+          >Cancel</a
+        >
+      </div>
     </form>
-
-</body>
-</html>
+  </div>
+</div>
+{% endblock %}

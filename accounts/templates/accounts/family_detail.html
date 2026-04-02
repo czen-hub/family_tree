@@ -1,69 +1,157 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>LINK ROOT - Member Detail</title>
-</head>
-<body>
-    <h1>LinkRoot</h1>
-    <hr>
-    <a href="{% url 'home' %}">Home</a> |
-    <a href="{% url 'profile' %}">Profile</a> |
-    <a href="{% url 'add_member' %}">Add Member</a> |
-    <a href="{% url 'family_list' %}">All Members</a> |
-    <a href="{% url 'visual_tree' %}">Visual Tree</a> |
-    <a href="{% url 'logout' %}">Logout</a>
-    <hr>
-
-    <h2>{{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}</h2>
-    <p>Marital Status: {{ member.marital_status }}</p>
-    {% if member.marital_status == 'Married' %}
-        <p>Spouse: {{ member.spouse_name }}</p>
-    {% endif %}
-    <p>Date of Birth: {{ member.date_of_birth }}</p>
-    <p>Address: <a href="{% url 'address_detail' member.address %}">{{ member.address }}</a></p>
-    {% if member.father_name %}
-        <p>Father: <a href="{% url 'member_search' member.father_name %}">{{ member.father_name }}</a></p>
-    {% endif %}
-    {% if member.mother_name %}
-        <p>Mother: <a href="{% url 'member_search' member.mother_name %}">{{ member.mother_name }}</a></p>
-    {% endif %}
-    {% if member.grandfather_name %}
-        <p>Grandfather: <a href="{% url 'member_search' member.grandfather_name %}">{{ member.grandfather_name }}</a></p>
-    {% endif %}
-    {% if member.grandmother_name %}
-        <p>Grandmother: <a href="{% url 'member_search' member.grandmother_name %}">{{ member.grandmother_name }}</a></p>
-    {% endif %}
-
-    <hr>
-    <h3>Siblings</h3>
+{% extends 'accounts/base.html' %} {% block title %}LINK ROOT — {{
+member.first_name }} {{ member.last_name }}{% endblock %} {% block content %}
+<div class="main">
+  <div
+    class="page-header"
+    style="display: flex; justify-content: space-between; align-items: flex-end"
+  >
+    <div>
+      <div class="page-title">
+        {{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}
+      </div>
+      <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem">
+        {% if member.gender == 'M' %}<span class="badge badge-male">Male</span
+        >{% elif member.gender == 'F' %}<span class="badge badge-female"
+          >Female</span
+        >{% endif %} {% if member.marital_status == 'Married' %}<span
+          class="badge badge-married"
+          >Married</span
+        >{% else %}<span class="badge badge-single">Single</span>{% endif %}
+      </div>
+    </div>
+    <a href="{% url 'visual_tree' %}" class="btn btn-sm">View Tree</a>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Personal Details</div>
+      <div class="detail-row">
+        <span class="detail-label">Date of Birth</span
+        ><span class="detail-value"
+          >{{ member.date_of_birth|default:"—" }}</span
+        >
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Location</span
+        ><span class="detail-value">{{ member.address|default:"—" }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Marital Status</span
+        ><span class="detail-value">{{ member.marital_status }}</span>
+      </div>
+      {% if member.spouse %}
+      <div class="detail-row">
+        <span class="detail-label">Spouse</span
+        ><span class="detail-value"
+          ><a
+            href="{% url 'family_detail' member.spouse.pk %}"
+            class="text-link"
+            >{{ member.spouse }}</a
+          ></span
+        >
+      </div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <div class="card-title">Parents</div>
+      <div class="detail-row">
+        <span class="detail-label">Father</span
+        ><span class="detail-value"
+          >{% if member.father %}<a
+            href="{% url 'family_detail' member.father.pk %}"
+            class="text-link"
+            >{{ member.father }}</a
+          >{% else %}—{% endif %}</span
+        >
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Mother</span
+        ><span class="detail-value"
+          >{% if member.mother %}<a
+            href="{% url 'family_detail' member.mother.pk %}"
+            class="text-link"
+            >{{ member.mother }}</a
+          >{% else %}—{% endif %}</span
+        >
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Paternal Grandfather</span
+        ><span class="detail-value"
+          >{% if member.father.father %}<a
+            href="{% url 'family_detail' member.father.father.pk %}"
+            class="text-link"
+            >{{ member.father.father }}</a
+          >{% else %}—{% endif %}</span
+        >
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Paternal Grandmother</span
+        ><span class="detail-value"
+          >{% if member.father.mother %}<a
+            href="{% url 'family_detail' member.father.mother.pk %}"
+            class="text-link"
+            >{{ member.father.mother }}</a
+          >{% else %}—{% endif %}</span
+        >
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Siblings</div>
     {% if siblings %}
-        {% for sibling in siblings %}
-            <p><a href="{% url 'family_detail' sibling.pk %}">{{ sibling.first_name }} {{ sibling.middle_name }} {{ sibling.last_name }}</a></p>
-        {% endfor %}
+    <ul class="member-list">
+      {% for sibling in siblings %}
+      <li>
+        <a href="{% url 'family_detail' sibling.pk %}" class="text-link"
+          >{{ sibling.first_name }} {{ sibling.middle_name }} {{
+          sibling.last_name }}</a
+        >
+        {% if sibling.gender == 'M' %}<span class="badge badge-male">Male</span
+        >{% elif sibling.gender == 'F' %}<span class="badge badge-female"
+          >Female</span
+        >{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-        <p>No siblings found.</p>
+    <p class="empty">No siblings found.</p>
     {% endif %}
-
-    {% if member.marital_status == 'Married' %}
-        <hr>
-        <h3>Children</h3>
-        {% if children %}
-            {% for child in children %}
-                <p><a href="{% url 'family_detail' child.pk %}">{{ child.first_name }} {{ child.last_name }}</a></p>
-            {% endfor %}
-        {% else %}
-            <p>No children found.</p>
-        {% endif %}
+  </div>
+  <div class="section">
+    <div class="section-title">Children</div>
+    {% if children %}
+    <ul class="member-list">
+      {% for child in children %}
+      <li>
+        <a href="{% url 'family_detail' child.pk %}" class="text-link"
+          >{{ child.first_name }} {{ child.middle_name }} {{ child.last_name
+          }}</a
+        >
+        {% if child.gender == 'M' %}<span class="badge badge-male">Male</span>{%
+        elif child.gender == 'F' %}<span class="badge badge-female">Female</span
+        >{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No children found.</p>
     {% endif %}
-
-    <hr>
-    <h3>Same Grandfather</h3>
+  </div>
+  <div class="section">
+    <div class="section-title">Extended Family</div>
     {% if relatives %}
-        {% for relative in relatives %}
-            <p><a href="{% url 'family_detail' relative.pk %}">{{ relative.first_name }} {{ relative.middle_name }} {{ relative.last_name }}</a></p>
-        {% endfor %}
+    <ul class="member-list">
+      {% for relative in relatives %}
+      <li>
+        <a href="{% url 'family_detail' relative.pk %}" class="text-link"
+          >{{ relative.first_name }} {{ relative.middle_name }} {{
+          relative.last_name }}</a
+        >
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-        <p>No relatives found.</p>
+    <p class="empty">No extended relatives found.</p>
     {% endif %}
-</body>
-</html>
+  </div>
+</div>
+{% endblock %}

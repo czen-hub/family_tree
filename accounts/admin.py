@@ -3,4 +3,17 @@ from .models import FamilyMember
 
 @admin.register(FamilyMember)
 class FamilyMemberAdmin(admin.ModelAdmin):
-    list_display = ['first_name', 'middle_name', 'last_name', 'date_of_birth', 'address', 'father_name', 'mother_name', 'grandfather_name', 'grandmother_name']
+    list_display = [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'gender',
+        'marital_status',
+        'father',
+        'mother',
+        'spouse',
+        'date_of_birth',
+        'address',
+    ]
+    search_fields = ['first_name', 'last_name']
+    list_filter = ['marital_status', 'gender', 'last_name']
