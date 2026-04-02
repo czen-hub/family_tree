@@ -1,640 +1,237 @@
-<!doctype html>
-<html>
-  <head>
-    <title>LINK ROOT - Visual Tree</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap");
+﻿{% extends 'accounts/base.html' %}
+{% block title %}LINK ROOT — Family Tree{% endblock %}
+{% block content %}
+<div class="page-header" style="padding:2rem 2rem 1.25rem; border-bottom:1px solid var(--border); display:flex; align-items:flex-end; justify-content:space-between; position:relative; z-index:1;">
+<div>
+<div class="page-title">Family Tree</div>
+<div id="breadcrumb" style="color:var(--text-dim); font-style:italic; font-size:0.95rem; margin-top:0.3rem;"></div>
+</div>
+<div style="display:flex; gap:0.5rem; align-items:center;">
+<select id="member-jump" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Crimson Text,serif; font-size:0.9rem; outline:none; cursor:pointer;"><option value="">Jump to member...</option></select>
+<button class="btn btn-sm" id="btn-fit">Fit</button>
+<button class="btn btn-sm" id="btn-zoom-in">＋</button>
+<button class="btn btn-sm" id="btn-zoom-out">－</button>
+</div>
+</div>
+<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 140px); overflow:hidden;">
+<div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;"><div style="font-family:'Cinzel',serif; font-size:0.9rem; color:#7a6430; letter-spacing:0.15em; animation:pulse 1.5s ease-in-out infinite;">TRACING LINEAGE…</div></div>
+<svg id="tree-svg" style="width:100%; height:100%; cursor:grab;"></svg>
+</div>
+<div id="tooltip" style="position:fixed; background:#16161a; border:1px solid #7a6430; padding:0.75rem 1rem; pointer-events:none; opacity:0; transition:opacity 0.2s; z-index:100; min-width:160px;">
+<div id="tt-name" style="font-family:'Cinzel',serif; font-size:0.85rem; color:#e8c97a; margin-bottom:0.3rem;"></div>
+<div id="tt-detail" style="font-size:0.85rem; color:#8a8070; font-style:italic;"></div>
+</div>
+<style>
+@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+.link { fill:none; stroke:#2a2a35; stroke-width:1.5px; }
+.node-group { cursor:pointer; }
+.ancestor-link { fill:none; stroke:#7a6430; stroke-width:1px; stroke-dasharray:5 3; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const NODE_W = 170, NODE_H = 65;
+let currentId = null;
+let zoomBehavior = null;
+let svgEl = null;
 
-      :root {
-        --bg: #0d0d0f;
-        --surface: #16161a;
-        --border: #2a2a35;
-        --gold: #c9a84c;
-        --gold-light: #e8c97a;
-        --gold-dim: #7a6430;
-        --text: #e8e0d0;
-        --text-dim: #8a8070;
-        --male: #2a4a6b;
-        --female: #5a2a4a;
-        --male-border: #4a8abf;
-        --female-border: #bf4a8a;
-        --link: #3a3a45;
-      }
+async function loadTree(memberId) {
+    document.getElementById('loading').style.display = 'flex';
+    const url = "{% url 'family_tree_json' %}" + (memberId ? '?id=' + memberId : '');
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        document.getElementById('loading').style.display = 'none';
+        if (!data.tree && !data.ancestors) { showEmpty(); return; }
+        currentId = data.focused_id;
+        populateJump(data.all_members, data.focused_id);
+        updateBreadcrumb(data.focused_name);
+        renderTree(data);
+    } catch(e) {
+        document.getElementById('loading').innerHTML = '<div style="font-family:Cinzel,serif;color:#7a6430;">Could not load tree data</div>';
+    }
+}
 
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
+function populateJump(members, focusedId) {
+    const sel = document.getElementById('member-jump');
+    sel.innerHTML = '<option value="">Jump to member...</option>';
+    members.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        if (m.id === focusedId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    sel.onchange = () => { if (sel.value) loadTree(sel.value); };
+}
 
-      body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: "Crimson Text", Georgia, serif;
-        min-height: 100vh;
-        overflow-x: hidden;
-      }
+function updateBreadcrumb(name) {
+    document.getElementById('breadcrumb').textContent = 'Viewing: ' + name;
+}
 
-      /* Background texture */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background-image:
-          radial-gradient(
-            ellipse at 20% 20%,
-            rgba(201, 168, 76, 0.04) 0%,
-            transparent 50%
-          ),
-          radial-gradient(
-            ellipse at 80% 80%,
-            rgba(201, 168, 76, 0.03) 0%,
-            transparent 50%
-          );
-        pointer-events: none;
-        z-index: 0;
-      }
+function showEmpty() {
+    document.getElementById('loading').innerHTML = '<div style="text-align:center;"><div style="font-size:2rem;opacity:0.3;margin-bottom:1rem;">🌳</div><div style="font-family:Cinzel,serif;color:#7a6430;margin-bottom:0.75rem;">No Family Members Yet</div><a href="/accounts/add-member/" style="color:#c9a84c;text-decoration:none;font-family:Cinzel,serif;font-size:0.8rem;border:1px solid #7a6430;padding:0.5rem 1.2rem;">Add First Member</a></div>';
+}
 
-      /* NAV */
-      nav {
-        position: relative;
-        z-index: 10;
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
-        padding: 0 2rem;
-        display: flex;
-        align-items: center;
-        gap: 0;
-      }
+function renderTree(data) {
+    const container = document.getElementById('tree-container');
+    const W = container.clientWidth, H = container.clientHeight;
+    d3.select('#tree-svg').selectAll('*').remove();
+    const svg = d3.select('#tree-svg');
+    svgEl = svg;
+    const zoomGroup = svg.append('g');
+    zoomBehavior = d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => zoomGroup.attr('transform', e.transform));
+    svg.call(zoomBehavior);
 
-      .nav-brand {
-        font-family: "Cinzel", serif;
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--gold);
-        letter-spacing: 0.15em;
-        padding: 1rem 1.5rem 1rem 0;
-        border-right: 1px solid var(--border);
-        margin-right: 1.5rem;
-        text-decoration: none;
-      }
+    const allNodes = [];
+    const allLinks = [];
+    const VSEP = 110, HSEP = 200;
 
-      nav a {
-        color: var(--text-dim);
-        text-decoration: none;
-        font-size: 0.85rem;
-        letter-spacing: 0.08em;
-        padding: 1rem 0.75rem;
-        transition: color 0.2s;
-        font-family: "Cinzel", serif;
-        font-weight: 400;
-      }
-
-      nav a:hover,
-      nav a.active {
-        color: var(--gold);
-      }
-
-      nav a + a::before {
-        content: "·";
-        color: var(--border);
-        margin-right: 0.75rem;
-      }
-
-      /* PAGE HEADER */
-      .page-header {
-        position: relative;
-        z-index: 1;
-        padding: 2.5rem 2rem 1.5rem;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-      }
-
-      .page-title {
-        font-family: "Cinzel", serif;
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: var(--gold-light);
-        letter-spacing: 0.1em;
-      }
-
-      .page-subtitle {
-        color: var(--text-dim);
-        font-style: italic;
-        font-size: 1rem;
-        margin-top: 0.25rem;
-      }
-
-      .tree-controls {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-      }
-
-      .btn {
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--text-dim);
-        padding: 0.4rem 0.9rem;
-        font-family: "Cinzel", serif;
-        font-size: 0.75rem;
-        letter-spacing: 0.08em;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn:hover {
-        border-color: var(--gold-dim);
-        color: var(--gold);
-      }
-
-      /* TREE CONTAINER */
-      #tree-container {
-        position: relative;
-        z-index: 1;
-        width: 100%;
-        height: calc(100vh - 130px);
-        overflow: hidden;
-      }
-
-      #tree-svg {
-        width: 100%;
-        height: 100%;
-        cursor: grab;
-      }
-
-      #tree-svg:active {
-        cursor: grabbing;
-      }
-
-      /* D3 NODE STYLES */
-      .node-group {
-        cursor: pointer;
-      }
-
-      .node-rect {
-        rx: 3;
-        ry: 3;
-        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
-        transition: all 0.2s;
-      }
-
-      .node-group:hover .node-rect {
-        filter: drop-shadow(0 6px 20px rgba(201, 168, 76, 0.3));
-      }
-
-      .node-name {
-        font-family: "Crimson Text", serif;
-        font-size: 13px;
-        font-weight: 600;
-        fill: #e8e0d0;
-        pointer-events: none;
-      }
-
-      .node-dob {
-        font-family: "Crimson Text", serif;
-        font-size: 10px;
-        fill: #8a8070;
-        pointer-events: none;
-        font-style: italic;
-      }
-
-      .node-spouse {
-        font-family: "Crimson Text", serif;
-        font-size: 10px;
-        fill: #c9a84c;
-        pointer-events: none;
-      }
-
-      .link {
-        fill: none;
-        stroke: var(--link);
-        stroke-width: 1.5px;
-      }
-
-      /* EMPTY STATE */
-      .empty-state {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        color: var(--text-dim);
-      }
-
-      .empty-icon {
-        font-size: 3rem;
-        opacity: 0.3;
-      }
-
-      .empty-title {
-        font-family: "Cinzel", serif;
-        font-size: 1.1rem;
-        color: var(--gold-dim);
-        letter-spacing: 0.1em;
-      }
-
-      .empty-text {
-        font-style: italic;
-        font-size: 0.95rem;
-      }
-
-      .empty-link {
-        color: var(--gold);
-        text-decoration: none;
-        font-family: "Cinzel", serif;
-        font-size: 0.8rem;
-        letter-spacing: 0.1em;
-        border: 1px solid var(--gold-dim);
-        padding: 0.5rem 1.2rem;
-        transition: all 0.2s;
-      }
-
-      .empty-link:hover {
-        background: rgba(201, 168, 76, 0.1);
-      }
-
-      /* TOOLTIP */
-      .tooltip {
-        position: fixed;
-        background: var(--surface);
-        border: 1px solid var(--gold-dim);
-        padding: 0.75rem 1rem;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 100;
-        min-width: 160px;
-      }
-
-      .tooltip.visible {
-        opacity: 1;
-      }
-
-      .tooltip-name {
-        font-family: "Cinzel", serif;
-        font-size: 0.85rem;
-        color: var(--gold-light);
-        margin-bottom: 0.3rem;
-      }
-
-      .tooltip-detail {
-        font-size: 0.85rem;
-        color: var(--text-dim);
-        font-style: italic;
-      }
-
-      /* LEGEND */
-      .legend {
-        position: absolute;
-        bottom: 1.5rem;
-        left: 1.5rem;
-        display: flex;
-        gap: 1.5rem;
-        z-index: 10;
-      }
-
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        font-family: "Cinzel", serif;
-        letter-spacing: 0.05em;
-      }
-
-      .legend-box {
-        width: 14px;
-        height: 14px;
-        border-radius: 2px;
-        border: 1px solid;
-      }
-
-      .legend-box.male {
-        background: var(--male);
-        border-color: var(--male-border);
-      }
-      .legend-box.female {
-        background: var(--female);
-        border-color: var(--female-border);
-      }
-      .legend-box.unknown {
-        background: #2a2a35;
-        border-color: #5a5a6a;
-      }
-
-      /* LOADING */
-      .loading {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .loading-text {
-        font-family: "Cinzel", serif;
-        font-size: 0.9rem;
-        color: var(--gold-dim);
-        letter-spacing: 0.15em;
-        animation: pulse 1.5s ease-in-out infinite;
-      }
-
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 0.4;
+    // Draw descendants (below center)
+    function placeDescendants(node, x, y, level) {
+        if (!node) return;
+        node._x = x; node._y = y;
+        allNodes.push({ ...node, _x: x, _y: y, type: level === 0 ? 'focus' : 'desc' });
+        if (node.children && node.children.length > 0) {
+            const total = (node.children.length - 1) * HSEP;
+            node.children.forEach((child, i) => {
+                const cx = x - total / 2 + i * HSEP;
+                const cy = y + VSEP;
+                allLinks.push({ x1: x, y1: y + NODE_H/2, x2: cx, y2: cy - NODE_H/2, type: 'desc' });
+                placeDescendants(child, cx, cy, level + 1);
+            });
         }
-        50% {
-          opacity: 1;
+    }
+
+    // Draw ancestors (above center)
+    function placeAncestors(node, x, y, level) {
+        if (!node || level > 3) return;
+        if (level === 0) return; // skip focus node, already placed
+        allNodes.push({ ...node, _x: x, _y: y, type: 'anc' });
+        if (node.father) {
+            const fx = x - HSEP / 2;
+            const fy = y - VSEP;
+            allLinks.push({ x1: x, y1: y - NODE_H/2, x2: fx, y2: fy + NODE_H/2, type: 'anc' });
+            placeAncestors(node.father, fx, fy, level + 1);
         }
-      }
-    </style>
-  </head>
-  <body>
-    <nav>
-      <a href="{% url 'home' %}" class="nav-brand">LINK ROOT</a>
-      <a href="{% url 'profile' %}">Profile</a>
-      <a href="{% url 'family_list' %}">Members</a>
-      <a href="{% url 'add_member' %}">Add Member</a>
-      <a href="{% url 'visual_tree' %}" class="active">Family Tree</a>
-      <a href="{% url 'logout' %}">Logout</a>
-    </nav>
-
-    <div class="page-header">
-      <div>
-        <div class="page-title">Family Tree</div>
-        <div class="page-subtitle">Your lineage, visualised</div>
-      </div>
-      <div class="tree-controls">
-        <button class="btn" id="btn-fit">Fit to Screen</button>
-        <button class="btn" id="btn-zoom-in">＋ Zoom</button>
-        <button class="btn" id="btn-zoom-out">－ Zoom</button>
-      </div>
-    </div>
-
-    <div id="tree-container">
-      <div class="loading" id="loading">
-        <div class="loading-text">TRACING LINEAGE…</div>
-      </div>
-      <svg id="tree-svg"></svg>
-      <div class="legend">
-        <div class="legend-item">
-          <div class="legend-box male"></div>
-          Male
-        </div>
-        <div class="legend-item">
-          <div class="legend-box female"></div>
-          Female
-        </div>
-        <div class="legend-item">
-          <div class="legend-box unknown"></div>
-          Unknown
-        </div>
-      </div>
-    </div>
-
-    <div class="tooltip" id="tooltip">
-      <div class="tooltip-name" id="tt-name"></div>
-      <div class="tooltip-detail" id="tt-detail"></div>
-    </div>
-
-    <script>
-      const NODE_W = 160;
-      const NODE_H = 60;
-
-      async function loadTree() {
-        try {
-          const res = await fetch("{% url 'family_tree_json' %}");
-          const data = await res.json();
-          document.getElementById("loading").style.display = "none";
-
-          if (!data.tree || data.tree.length === 0) {
-            showEmpty();
-            return;
-          }
-
-          renderTree(data.tree);
-        } catch (e) {
-          document.getElementById("loading").innerHTML =
-            '<div class="loading-text">Could not load tree data</div>';
+        if (node.mother) {
+            const mx = x + HSEP / 2;
+            const my = y - VSEP;
+            allLinks.push({ x1: x, y1: y - NODE_H/2, x2: mx, y2: my + NODE_H/2, type: 'anc' });
+            placeAncestors(node.mother, mx, my, level + 1);
         }
-      }
+    }
 
-      function showEmpty() {
-        const container = document.getElementById("tree-container");
-        const loading = document.getElementById("loading");
-        loading.innerHTML = `
-        <div class="empty-icon">🌳</div>
-        <div class="empty-title">No Family Members Yet</div>
-        <div class="empty-text">Add members to see your family tree</div>
-        <a href="/add-member/" class="empty-link">Add First Member</a>
-    `;
-      }
-
-      function flattenTree(nodes, parentId = null, result = []) {
-        for (const node of nodes) {
-          result.push({ ...node, parentId, _children: node.children });
-          if (node.children && node.children.length > 0) {
-            flattenTree(node.children, node.id, result);
-          }
+    // Place focused member at center
+    if (data.tree) placeDescendants(data.tree, 0, 0, 0);
+    if (data.ancestors) {
+        // father side
+        if (data.ancestors.father) {
+            const fx = -HSEP / 2, fy = -VSEP;
+            allLinks.push({ x1: 0, y1: -NODE_H/2, x2: fx, y2: fy + NODE_H/2, type: 'anc' });
+            allNodes.push({ ...data.ancestors.father, _x: fx, _y: fy, type: 'anc' });
+            placeAncestors(data.ancestors.father, fx, fy, 1);
         }
-        return result;
-      }
-
-      function renderTree(roots) {
-        const svg = d3.select("#tree-svg");
-        const container = document.getElementById("tree-container");
-        const W = container.clientWidth;
-        const H = container.clientHeight;
-
-        // Build hierarchy — if multiple roots, wrap them
-        let hierarchyData;
-        if (roots.length === 1) {
-          hierarchyData = roots[0];
-        } else {
-          hierarchyData = {
-            id: "__root__",
-            name: "",
-            children: roots,
-            _virtual: true,
-          };
+        if (data.ancestors.mother) {
+            const mx = HSEP / 2, my = -VSEP;
+            allLinks.push({ x1: 0, y1: -NODE_H/2, x2: mx, y2: my + NODE_H/2, type: 'anc' });
+            allNodes.push({ ...data.ancestors.mother, _x: mx, _y: my, type: 'anc' });
+            placeAncestors(data.ancestors.mother, mx, my, 1);
         }
+    }
 
-        const root = d3.hierarchy(hierarchyData, (d) => d.children);
+    // Remove duplicate nodes (keep first occurrence)
+    const seen = new Set();
+    const uniqueNodes = allNodes.filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
 
-        const treeLayout = d3.tree().nodeSize([NODE_W + 30, NODE_H + 60]);
+    // Draw links
+    zoomGroup.selectAll('.link').data(allLinks).enter().append('line')
+        .attr('class', d => d.type === 'anc' ? 'ancestor-link' : 'link')
+        .attr('x1', d => d.x1).attr('y1', d => d.y1)
+        .attr('x2', d => d.x2).attr('y2', d => d.y2);
 
-        treeLayout(root);
+    // Draw nodes
+    const nodeGroups = zoomGroup.selectAll('.node-group').data(uniqueNodes).enter()
+        .append('g').attr('class', 'node-group')
+        .attr('transform', d => `translate(${d._x - NODE_W/2}, ${d._y - NODE_H/2})`);
 
-        // Center virtual root if exists
-        const nodes = root.descendants().filter((d) => !d.data._virtual);
-        const links = root.links().filter((l) => !l.source.data._virtual);
+    // Node background
+    nodeGroups.append('rect')
+        .attr('width', NODE_W).attr('height', NODE_H).attr('rx', 4)
+        .attr('fill', d => {
+            if (d.type === 'focus') return d.gender === 'M' ? '#1e3550' : d.gender === 'F' ? '#3d1e35' : '#1e1e2a';
+            if (d.type === 'anc') return d.gender === 'M' ? '#162540' : d.gender === 'F' ? '#2d1628' : '#16161a';
+            return d.gender === 'M' ? '#1e3550' : d.gender === 'F' ? '#3d1e35' : '#1e1e2a';
+        })
+        .attr('stroke', d => {
+            if (d.type === 'focus') return '#c9a84c';
+            return d.gender === 'M' ? '#4a8abf' : d.gender === 'F' ? '#bf4a8a' : '#5a5a6a';
+        })
+        .attr('stroke-width', d => d.type === 'focus' ? 2 : 1)
+        .style('filter', 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))');
 
-        // Zoom behaviour
-        const zoomGroup = svg.append("g").attr("class", "zoom-group");
+    // Top color bar
+    nodeGroups.append('rect').attr('width', NODE_W).attr('height', 3).attr('rx', 3)
+        .attr('fill', d => d.gender === 'M' ? '#4a8abf' : d.gender === 'F' ? '#bf4a8a' : '#5a5a6a');
 
-        const zoom = d3
-          .zoom()
-          .scaleExtent([0.1, 3])
-          .on("zoom", (e) => zoomGroup.attr("transform", e.transform));
+    // Name
+    nodeGroups.append('text')
+        .attr('x', NODE_W/2).attr('y', 22).attr('text-anchor', 'middle')
+        .attr('fill', '#e8e0d0').attr('font-family', 'Crimson Text,serif').attr('font-size', 13).attr('font-weight', 600)
+        .text(d => d.name || '');
 
-        svg.call(zoom);
+    // DOB
+    nodeGroups.append('text')
+        .attr('x', NODE_W/2).attr('y', 36).attr('text-anchor', 'middle')
+        .attr('fill', '#8a8070').attr('font-family', 'Crimson Text,serif').attr('font-size', 10).attr('font-style', 'italic')
+        .text(d => d.dob ? `b. ${d.dob}` : '');
 
-        // Draw links
-        zoomGroup
-          .selectAll(".link")
-          .data(links)
-          .enter()
-          .append("path")
-          .attr("class", "link")
-          .attr(
-            "d",
-            d3
-              .linkVertical()
-              .x((d) => d.x)
-              .y((d) => d.y),
-          );
+    // Spouse name (clickable)
+    nodeGroups.filter(d => d.spouse_name).append('text')
+        .attr('x', NODE_W/2).attr('y', 52).attr('text-anchor', 'middle')
+        .attr('fill', '#c9a84c').attr('font-family', 'Crimson Text,serif').attr('font-size', 11)
+        .attr('cursor', 'pointer')
+        .text(d => d.spouse_name ? `♦ ${d.spouse_name}` : '')
+        .on('click', function(event, d) {
+            event.stopPropagation();
+            if (d.spouse_id) loadTree(d.spouse_id);
+        });
 
-        // Draw nodes
-        const nodeGroups = zoomGroup
-          .selectAll(".node-group")
-          .data(nodes)
-          .enter()
-          .append("g")
-          .attr("class", "node-group")
-          .attr(
-            "transform",
-            (d) => `translate(${d.x - NODE_W / 2}, ${d.y - NODE_H / 2})`,
-          );
+    // Click node to re-center
+    nodeGroups.on('click', function(event, d) {
+        if (d.id !== currentId) loadTree(d.id);
+    });
 
-        // Node background
-        nodeGroups
-          .append("rect")
-          .attr("class", "node-rect")
-          .attr("width", NODE_W)
-          .attr("height", NODE_H)
-          .attr("fill", (d) => {
-            if (d.data.gender === "M") return "#1e3550";
-            if (d.data.gender === "F") return "#3d1e35";
-            return "#1e1e2a";
-          })
-          .attr("stroke", (d) => {
-            if (d.data.gender === "M") return "#4a8abf";
-            if (d.data.gender === "F") return "#bf4a8a";
-            return "#5a5a6a";
-          })
-          .attr("stroke-width", 1.5);
+    // Tooltip
+    const tooltip = document.getElementById('tooltip');
+    nodeGroups.on('mousemove', function(event, d) {
+        document.getElementById('tt-name').textContent = d.name;
+        const details = [];
+        if (d.dob) details.push('Born: ' + d.dob);
+        if (d.spouse_name) details.push('Spouse: ' + d.spouse_name);
+        if (d.type === 'focus') details.push('← focused');
+        document.getElementById('tt-detail').textContent = details.join(' · ');
+        tooltip.style.opacity = 1;
+        tooltip.style.left = (event.clientX + 14) + 'px';
+        tooltip.style.top = (event.clientY - 10) + 'px';
+    }).on('mouseleave', () => tooltip.style.opacity = 0);
 
-        // Gold top bar
-        nodeGroups
-          .append("rect")
-          .attr("width", NODE_W)
-          .attr("height", 3)
-          .attr("fill", (d) => {
-            if (d.data.gender === "M") return "#4a8abf";
-            if (d.data.gender === "F") return "#bf4a8a";
-            return "#5a5a6a";
-          })
-          .attr("rx", 3);
+    // Fit to screen
+    fitNodes(uniqueNodes, W, H);
+    document.getElementById('btn-fit').onclick = () => fitNodes(uniqueNodes, W, H);
+    document.getElementById('btn-zoom-in').onclick = () => svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.4);
+    document.getElementById('btn-zoom-out').onclick = () => svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7);
+}
 
-        // Name
-        nodeGroups
-          .append("text")
-          .attr("class", "node-name")
-          .attr("x", NODE_W / 2)
-          .attr("y", 26)
-          .attr("text-anchor", "middle")
-          .text((d) => d.data.name || "");
+function fitNodes(nodes, W, H) {
+    if (!nodes.length) return;
+    const xs = nodes.map(d => d._x), ys = nodes.map(d => d._y);
+    const minX = Math.min(...xs) - NODE_W/2 - 30, maxX = Math.max(...xs) + NODE_W/2 + 30;
+    const minY = Math.min(...ys) - NODE_H/2 - 30, maxY = Math.max(...ys) + NODE_H/2 + 30;
+    const scale = Math.min(W/(maxX-minX), H/(maxY-minY), 1.5) * 0.88;
+    svgEl.transition().duration(600).call(zoomBehavior.transform,
+        d3.zoomIdentity.translate((W-(maxX-minX)*scale)/2 - minX*scale, (H-(maxY-minY)*scale)/2 - minY*scale).scale(scale));
+}
 
-        // DOB
-        nodeGroups
-          .append("text")
-          .attr("class", "node-dob")
-          .attr("x", NODE_W / 2)
-          .attr("y", 40)
-          .attr("text-anchor", "middle")
-          .text((d) => (d.data.dob ? `b. ${d.data.dob}` : ""));
-
-        // Spouse
-        nodeGroups
-          .append("text")
-          .attr("class", "node-spouse")
-          .attr("x", NODE_W / 2)
-          .attr("y", 53)
-          .attr("text-anchor", "middle")
-          .text((d) => (d.data.spouse ? `♦ ${d.data.spouse}` : ""));
-
-        // Tooltip
-        const tooltip = document.getElementById("tooltip");
-        const ttName = document.getElementById("tt-name");
-        const ttDetail = document.getElementById("tt-detail");
-
-        nodeGroups
-          .on("mousemove", function (event, d) {
-            ttName.textContent = d.data.name;
-            const details = [];
-            if (d.data.dob) details.push(`Born: ${d.data.dob}`);
-            if (d.data.spouse) details.push(`Spouse: ${d.data.spouse}`);
-            if (d.data.gender)
-              details.push(
-                d.data.gender === "M"
-                  ? "Male"
-                  : d.data.gender === "F"
-                    ? "Female"
-                    : "",
-              );
-            ttDetail.textContent = details.join("  ·  ");
-            tooltip.classList.add("visible");
-            tooltip.style.left = event.clientX + 14 + "px";
-            tooltip.style.top = event.clientY - 10 + "px";
-          })
-          .on("mouseleave", function () {
-            tooltip.classList.remove("visible");
-          });
-
-        // Fit to screen on load
-        fitToScreen(zoom, svg, nodes, W, H);
-
-        // Controls
-        document.getElementById("btn-fit").onclick = () =>
-          fitToScreen(zoom, svg, nodes, W, H);
-        document.getElementById("btn-zoom-in").onclick = () =>
-          svg.transition().duration(300).call(zoom.scaleBy, 1.4);
-        document.getElementById("btn-zoom-out").onclick = () =>
-          svg.transition().duration(300).call(zoom.scaleBy, 0.7);
-      }
-
-      function fitToScreen(zoom, svg, nodes, W, H) {
-        if (!nodes.length) return;
-        const xs = nodes.map((d) => d.x);
-        const ys = nodes.map((d) => d.y);
-        const minX = Math.min(...xs) - NODE_W / 2 - 20;
-        const maxX = Math.max(...xs) + NODE_W / 2 + 20;
-        const minY = Math.min(...ys) - NODE_H / 2 - 20;
-        const maxY = Math.max(...ys) + NODE_H / 2 + 20;
-
-        const treeW = maxX - minX;
-        const treeH = maxY - minY;
-        const scale = Math.min(W / treeW, H / treeH, 1.5) * 0.9;
-        const tx = (W - treeW * scale) / 2 - minX * scale;
-        const ty = (H - treeH * scale) / 2 - minY * scale;
-
-        svg
-          .transition()
-          .duration(600)
-          .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
-      }
-
-      loadTree();
-    </script>
-  </body>
-</html>
+loadTree(null);
+</script>
+{% endblock %}

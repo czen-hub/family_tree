@@ -1,33 +1,99 @@
-{% extends 'accounts/base.html' %} {% block title %}LINK ROOT — Add Member{%
-endblock %} {% block content %}
-<div class="main" style="max-width: 640px">
-  <div class="page-header">
-    <div class="page-title">Add Family Member</div>
-    <div class="page-subtitle">Register a new member to the tree</div>
-  </div>
-  <div class="card">
-    <form method="POST">
-      {% csrf_token %} {{ form.as_p }}
-      <div
-        style="
-          margin-top: 1.5rem;
-          padding-top: 1.5rem;
-          border-top: 1px solid var(--border);
-        "
-      >
-        <button type="submit" class="btn">Add to Family Tree</button>
-        <a
-          href="{% url 'family_list' %}"
-          class="btn"
-          style="
-            margin-left: 0.75rem;
-            border-color: var(--border);
-            color: var(--text-dim);
-          "
-          >Cancel</a
-        >
-      </div>
-    </form>
-  </div>
+﻿{% extends 'accounts/base.html' %}
+{% block title %}LINK ROOT — Add Member{% endblock %}
+{% block content %}
+<div class="main" style="max-width:640px;">
+<div class="page-header">
+<div class="page-title">Add Family Member</div>
+<div class="page-subtitle">Register a new member to the tree</div>
 </div>
+<div class="card">
+<form method="POST" id="member-form">
+{% csrf_token %}
+{{ form.as_p }}
+<div style="margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid var(--border);">
+<button type="submit" class="btn">Add to Family Tree</button>
+<a href="{% url 'family_list' %}" class="btn" style="margin-left:0.75rem; border-color:var(--border); color:var(--text-dim);">Cancel</a>
+</div>
+</form>
+</div>
+</div>
+<script>
+// Get all family members from the existing dropdowns
+const fatherSelect = document.getElementById('id_father');
+const motherSelect = document.getElementById('id_mother');
+const spouseSelect = document.getElementById('id_spouse');
+const lastNameSelect = document.getElementById('id_last_name');
+
+// Store all original options
+const fatherOptions = Array.from(fatherSelect.options);
+const motherOptions = Array.from(motherSelect.options);
+
+// Insert last name filter dropdowns before father and mother fields
+function insertFilterDropdown(beforeElement, label, id) {
+    const p = document.createElement('p');
+    const lbl = document.createElement('label');
+    lbl.textContent = label;
+    lbl.setAttribute('for', id);
+    const sel = document.createElement('select');
+    sel.id = id;
+    sel.style.cssText = 'width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.65rem 0.85rem; font-family:Crimson Text,serif; font-size:1rem; outline:none;';
+    [
+        ['', '-- Select Last Name to Filter --'],
+        ['Chyaba', 'Chyaba'],
+        ['Shangba', 'Shangba'],
+        ['Dongba', 'Dongba'],
+        ['Yeba', 'Yeba'],
+    ].forEach(([val, txt]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = txt;
+        sel.appendChild(opt);
+    });
+    p.appendChild(lbl);
+    p.appendChild(sel);
+    beforeElement.parentNode.insertBefore(p, beforeElement);
+    return sel;
+}
+
+const fatherP = fatherSelect.closest('p');
+const motherP = motherSelect.closest('p');
+
+const fatherFilter = insertFilterDropdown(fatherP, 'Filter Father by Last Name:', 'filter_father_lastname');
+const motherFilter = insertFilterDropdown(motherP, 'Filter Mother by Last Name:', 'filter_mother_lastname');
+
+function filterSelect(select, allOptions, lastName, genderFilter) {
+    const current = select.value;
+    select.innerHTML = '';
+    allOptions.forEach(opt => {
+        if (opt.value === '') {
+            select.appendChild(opt.cloneNode(true));
+            return;
+        }
+        const text = opt.text.toLowerCase();
+        const matchesLastName = !lastName || text.includes(lastName.toLowerCase());
+        if (matchesLastName) {
+            select.appendChild(opt.cloneNode(true));
+        }
+    });
+    select.value = current;
+}
+
+fatherFilter.addEventListener('change', () => {
+    filterSelect(fatherSelect, fatherOptions, fatherFilter.value);
+});
+
+motherFilter.addEventListener('change', () => {
+    filterSelect(motherSelect, motherOptions, motherFilter.value);
+});
+
+// Also sync last name filter with the main last name field
+lastNameSelect.addEventListener('change', () => {
+    if (lastNameSelect.value) {
+        fatherFilter.value = lastNameSelect.value;
+        motherFilter.value = lastNameSelect.value;
+        filterSelect(fatherSelect, fatherOptions, lastNameSelect.value);
+        filterSelect(motherSelect, motherOptions, lastNameSelect.value);
+    }
+});
+</script>
 {% endblock %}

@@ -28,7 +28,7 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('dashboard')
+            return redirect('profile')
     else:
         form = AuthenticationForm()
     return render(request, 'accounts/login.html', {'form': form})
@@ -102,33 +102,66 @@ def add_member(request):
 
 @login_required
 def family_tree_json(request):
-    """Returns all family members as JSON for the visual tree."""
-
-    def build_node(member, visited=None):
+    member_id = request.GET.get('id')
+    
+    def build_descendants(member, visited=None):
         if visited is None:
             visited = set()
         if member.pk in visited:
             return None
         visited.add(member.pk)
-
         children = member.get_children()
         return {
             'id': member.pk,
             'name': f"{member.first_name} {member.last_name}",
+            'full_name': f"{member.first_name} {member.middle_name} {member.last_name}".strip(),
             'gender': member.gender,
             'dob': str(member.date_of_birth) if member.date_of_birth else '',
-            'spouse': str(member.spouse) if member.spouse else '',
+            'spouse_id': member.spouse.pk if member.spouse else None,
+            'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
             'children': [
-                node for node in (build_node(child, visited) for child in children)
+                node for node in (build_descendants(c, visited) for c in children)
                 if node is not None
             ],
         }
 
-    # Root members are those with no father recorded
-    roots = FamilyMember.objects.filter(father__isnull=True)
-    tree_data = [build_node(m) for m in roots]
+    def build_ancestors(member, depth=0):
+        if depth > 4:
+            return None
+        node = {
+            'id': member.pk,
+            'name': f"{member.first_name} {member.last_name}",
+            'gender': member.gender,
+            'dob': str(member.date_of_birth) if member.date_of_birth else '',
+            'spouse_id': member.spouse.pk if member.spouse else None,
+            'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
+            'father': build_ancestors(member.father, depth + 1) if member.father else None,
+            'mother': build_ancestors(member.mother, depth + 1) if member.mother else None,
+        }
+        return node
 
-    return JsonResponse({'tree': tree_data})
+    if member_id:
+        try:
+            member = FamilyMember.objects.get(pk=member_id)
+        except FamilyMember.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+    else:
+        member = FamilyMember.objects.filter(father__isnull=True).first()
+        if not member:
+            member = FamilyMember.objects.first()
+        if not member:
+            return JsonResponse({'tree': None, 'ancestors': None})
+
+    return JsonResponse({
+        'focused_id': member.pk,
+        'focused_name': f"{member.first_name} {member.last_name}",
+        'tree': build_descendants(member),
+        'ancestors': build_ancestors(member),
+        'all_members': [
+            {'id': m.pk, 'name': f"{m.first_name} {m.last_name}"}
+            for m in FamilyMember.objects.all()
+        ]
+    })
 
 
 @login_required

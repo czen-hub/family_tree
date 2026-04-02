@@ -1,120 +1,20 @@
-{% extends 'accounts/base.html' %} {% block title %}LINK ROOT — Login{% endblock
-%} {% block content %}
-<div
-  style="
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 56px);
-    padding: 2rem;
-    position: relative;
-    z-index: 1;
-  "
->
-  <div
-    style="
-      background: var(--surface);
-      border: 1px solid var(--border);
-      width: 100%;
-      max-width: 400px;
-      padding: 2.5rem;
-      position: relative;
-    "
-  >
-    <div
-      style="
-        position: absolute;
-        top: -1px;
-        left: -1px;
-        width: 16px;
-        height: 16px;
-        border-top: 2px solid var(--gold-dim);
-        border-left: 2px solid var(--gold-dim);
-      "
-    ></div>
-    <div
-      style="
-        position: absolute;
-        bottom: -1px;
-        right: -1px;
-        width: 16px;
-        height: 16px;
-        border-bottom: 2px solid var(--gold-dim);
-        border-right: 2px solid var(--gold-dim);
-      "
-    ></div>
-    <div
-      style="
-        font-family: &quot;Cinzel&quot;, serif;
-        font-size: 0.7rem;
-        letter-spacing: 0.3em;
-        color: var(--gold-dim);
-        text-align: center;
-        margin-bottom: 0.5rem;
-      "
-    >
-      LINK ROOT
-    </div>
-    <h2
-      style="
-        font-family: &quot;Cinzel&quot;, serif;
-        font-size: 1.5rem;
-        color: var(--gold-light);
-        text-align: center;
-        letter-spacing: 0.1em;
-        margin-bottom: 0.4rem;
-      "
-    >
-      Welcome Back
-    </h2>
-    <p
-      style="
-        text-align: center;
-        color: var(--text-dim);
-        font-style: italic;
-        margin-bottom: 1.75rem;
-        font-size: 0.95rem;
-      "
-    >
-      Sign in to your family tree
-    </p>
-    <hr
-      style="
-        border: none;
-        border-top: 1px solid var(--border);
-        margin-bottom: 1.75rem;
-      "
-    />
-    <form method="POST">
-      {% csrf_token %} {{ form.as_p }}
-      <button
-        type="submit"
-        class="btn"
-        style="width: 100%; text-align: center; margin-top: 0.5rem"
-      >
-        SIGN IN
-      </button>
-    </form>
-    <p
-      style="
-        text-align: center;
-        margin-top: 1.5rem;
-        color: var(--text-dim);
-        font-size: 0.9rem;
-      "
-    >
-      No account?
-      <a
-        href="{% url 'register' %}"
-        class="text-link"
-        style="
-          font-family: &quot;Cinzel&quot;, serif;
-          font-size: 0.78rem;
-          letter-spacing: 0.08em;
-        "
-        >Register here</a
-      >
-    </p>
-  </div>
+﻿{% extends 'accounts/base.html' %}
+{% block title %}LINK ROOT — Login{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 56px); padding:2rem; position:relative; z-index:1;">
+<div style="background:var(--surface); border:1px solid var(--border); width:100%; max-width:400px; padding:2.5rem; position:relative;">
+<div style="position:absolute; top:-1px; left:-1px; width:16px; height:16px; border-top:2px solid var(--gold-dim); border-left:2px solid var(--gold-dim);"></div>
+<div style="position:absolute; bottom:-1px; right:-1px; width:16px; height:16px; border-bottom:2px solid var(--gold-dim); border-right:2px solid var(--gold-dim);"></div>
+<div style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.3em; color:var(--gold-dim); text-align:center; margin-bottom:0.5rem;">LINK ROOT</div>
+<h2 style="font-family:'Cinzel',serif; font-size:1.5rem; color:var(--gold-light); text-align:center; letter-spacing:0.1em; margin-bottom:0.4rem;">Welcome Back</h2>
+<p style="text-align:center; color:var(--text-dim); font-style:italic; margin-bottom:1.75rem; font-size:0.95rem;">Sign in to your family tree</p>
+<hr style="border:none; border-top:1px solid var(--border); margin-bottom:1.75rem;">
+<form method="POST">
+{% csrf_token %}
+{{ form.as_p }}
+<button type="submit" class="btn" style="width:100%; text-align:center; margin-top:0.5rem;">SIGN IN</button>
+</form>
+<p style="text-align:center; margin-top:1.5rem; color:var(--text-dim); font-size:0.9rem;">No account? <a href="{% url 'register' %}" class="text-link" style="font-family:'Cinzel',serif; font-size:0.78rem; letter-spacing:0.08em;">Register here</a></p>
+</div>
 </div>
 {% endblock %}

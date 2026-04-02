@@ -1,68 +1,30 @@
-{% extends 'accounts/base.html' %} {% block title %}LINK ROOT — Home{% endblock
-%} {% block content %}
+﻿{% extends 'accounts/base.html' %}
+{% block title %}LINK ROOT — Home{% endblock %}
+{% block content %}
 <div class="main">
-  <div style="text-align: center; padding: 4rem 0 3rem">
-    <div
-      style="
-        font-family: &quot;Cinzel&quot;, serif;
-        font-size: 0.75rem;
-        letter-spacing: 0.35em;
-        color: var(--gold-dim);
-        margin-bottom: 1rem;
-      "
-    >
-      ✦ LINK ROOT ✦
-    </div>
-    <h1
-      style="
-        font-family: &quot;Cinzel&quot;, serif;
-        font-size: 2.8rem;
-        font-weight: 700;
-        color: var(--gold-light);
-        letter-spacing: 0.12em;
-        margin-bottom: 1rem;
-      "
-    >
-      Tashi Delek
-    </h1>
-    <p
-      style="
-        font-size: 1.2rem;
-        color: var(--text-dim);
-        font-style: italic;
-        max-width: 420px;
-        margin: 0 auto 2.5rem;
-      "
-    >
-      Connect with your family. Trace your lineage. Honour your roots.
-    </p>
-    <div
-      style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap"
-    >
-      {% if user.is_authenticated %}
-      <a href="{% url 'visual_tree' %}" class="btn">View Family Tree</a>
-      <a href="{% url 'family_list' %}" class="btn">All Members</a>
-      {% else %}
-      <a href="{% url 'register' %}" class="btn">Begin Your Journey</a>
-      <a href="{% url 'login' %}" class="btn">Sign In</a>
-      {% endif %}
-    </div>
-  </div>
-  <div class="grid-2" style="margin-top: 2rem">
-    <div class="card">
-      <div class="card-title">Your Heritage</div>
-      <p style="color: var(--text-dim); font-style: italic; line-height: 1.7">
-        Document every branch of your family — names, relationships, dates — and
-        watch your lineage take shape as a living tree.
-      </p>
-    </div>
-    <div class="card">
-      <div class="card-title">Connected Roots</div>
-      <p style="color: var(--text-dim); font-style: italic; line-height: 1.7">
-        Link parents, children, and spouses together. Discover siblings,
-        cousins, and relatives across generations at a glance.
-      </p>
-    </div>
-  </div>
+<div style="text-align:center; padding:4rem 0 3rem;">
+<div style="font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.35em; color:var(--gold-dim); margin-bottom:1rem;">✦ LINK ROOT ✦</div>
+<h1 style="font-family:'Cinzel',serif; font-size:2.8rem; font-weight:700; color:var(--gold-light); letter-spacing:0.12em; margin-bottom:1rem;">Tashi Delek</h1>
+<p style="font-size:1.2rem; color:var(--text-dim); font-style:italic; max-width:420px; margin:0 auto 2.5rem;">Connect with your family. Trace your lineage. Honour your roots.</p>
+<div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+{% if user.is_authenticated %}
+<a href="{% url 'visual_tree' %}" class="btn">View Family Tree</a>
+<a href="{% url 'family_list' %}" class="btn">All Members</a>
+{% else %}
+<a href="{% url 'register' %}" class="btn">Begin Your Journey</a>
+<a href="{% url 'login' %}" class="btn">Sign In</a>
+{% endif %}
+</div>
+</div>
+<div class="grid-2" style="margin-top:2rem;">
+<div class="card">
+<div class="card-title">Your Heritage</div>
+<p style="color:var(--text-dim); font-style:italic; line-height:1.7;">Document every branch of your family — names, relationships, dates — and watch your lineage take shape as a living tree.</p>
+</div>
+<div class="card">
+<div class="card-title">Connected Roots</div>
+<p style="color:var(--text-dim); font-style:italic; line-height:1.7;">Link parents, children, and spouses together. Discover siblings, cousins, and relatives across generations at a glance.</p>
+</div>
+</div>
 </div>
 {% endblock %}
