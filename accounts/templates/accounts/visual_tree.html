@@ -1,19 +1,40 @@
 ﻿{% extends 'accounts/base.html' %}
 {% block title %}LINK ROOT — Family Tree{% endblock %}
 {% block content %}
-<div class="page-header" style="padding:2rem 2rem 1.25rem; border-bottom:1px solid var(--border); display:flex; align-items:flex-end; justify-content:space-between; position:relative; z-index:1;">
+<div class="page-header" style="padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; flex-wrap:wrap; gap:0.75rem;">
 <div>
 <div class="page-title">Family Tree</div>
-<div id="breadcrumb" style="color:var(--text-dim); font-style:italic; font-size:0.95rem; margin-top:0.3rem;"></div>
+<div id="breadcrumb" style="color:var(--text-dim); font-style:italic; font-size:0.9rem; margin-top:0.2rem;"></div>
 </div>
-<div style="display:flex; gap:0.5rem; align-items:center;">
+<div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
 <select id="member-jump" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Crimson Text,serif; font-size:0.9rem; outline:none; cursor:pointer;"><option value="">Jump to member...</option></select>
+<select id="style-layout" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
+<option value="TB">↓ Top to Bottom</option>
+<option value="LR">→ Left to Right</option>
+<option value="RL">← Right to Left</option>
+</select>
+<select id="style-node" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
+<option value="box">▬ Box</option>
+<option value="rounded">▣ Rounded</option>
+<option value="pill">⬭ Pill</option>
+</select>
+<select id="style-line" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
+<option value="elbow">⌐ Elbow</option>
+<option value="curve">⌒ Curved</option>
+<option value="straight">/ Straight</option>
+</select>
+<select id="style-theme" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
+<option value="dark">◆ Dark Gold</option>
+<option value="light">◇ Light Parchment</option>
+<option value="contrast">◈ High Contrast</option>
+<option value="colorful">❋ Colorful</option>
+</select>
 <button class="btn btn-sm" id="btn-fit">Fit</button>
 <button class="btn btn-sm" id="btn-zoom-in">＋</button>
 <button class="btn btn-sm" id="btn-zoom-out">－</button>
 </div>
 </div>
-<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 140px); overflow:hidden;">
+<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden;">
 <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;"><div style="font-family:'Cinzel',serif; font-size:0.9rem; color:#7a6430; letter-spacing:0.15em; animation:pulse 1.5s ease-in-out infinite;">TRACING LINEAGE…</div></div>
 <svg id="tree-svg" style="width:100%; height:100%; cursor:grab;"></svg>
 </div>
@@ -24,28 +45,78 @@
 <style>
 @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
 .link { fill:none; stroke:#2a2a35; stroke-width:1.5px; }
-.node-group { cursor:pointer; }
 .ancestor-link { fill:none; stroke:#7a6430; stroke-width:1px; stroke-dasharray:5 3; }
+.node-group { cursor:pointer; }
+.expand-indicator { pointer-events:none; }
+body.theme-light { background:#f5f0e8; }
+body.theme-light .link { stroke:#c8bea8; }
+body.theme-light .ancestor-link { stroke:#a88840; }
+body.theme-contrast .link { stroke:#fff; }
+body.theme-contrast .ancestor-link { stroke:#aaa; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-const NODE_W = 170, NODE_H = 65;
+const NODE_W = 200, NODE_H = 82;
 let currentId = null;
 let zoomBehavior = null;
 let svgEl = null;
+let currentData = null;
+let styleLayout = 'TB';
+let styleNode = 'box';
+let styleLine = 'elbow';
+let styleTheme = 'dark';
+let currentScale = 3;
+let manualExpanded = new Set();
+let manualCollapsed = new Set();
+
+const ZOOM_LEVELS = [
+    { minScale: 0.0,  generations: 1 },
+    { minScale: 0.4,  generations: 2 },
+    { minScale: 0.6,  generations: 3 },
+    { minScale: 0.75, generations: 4 },
+    { minScale: 0.9,  generations: 5 },
+    { minScale: 1.1,  generations: 99 },
+];
+
+function getVisibleGenerations(scale) {
+    let gens = 1;
+    for (const lvl of ZOOM_LEVELS) { if (scale >= lvl.minScale) gens = lvl.generations; }
+    return gens;
+}
+
+const THEMES = {
+    dark:     { male:'#1e3550', female:'#3d1e35', unknown:'#1e1e2a', maleBorder:'#4a8abf', femaleBorder:'#bf4a8a', unknownBorder:'#5a5a6a', focusBorder:'#c9a84c', text:'#e8e0d0', subtext:'#8a8070', spouse:'#c9a84c', expand:'#c9a84c' },
+    light:    { male:'#c8ddf0', female:'#f0c8dd', unknown:'#e0d8c8', maleBorder:'#4a8abf', femaleBorder:'#bf4a8a', unknownBorder:'#a8a090', focusBorder:'#8a6820', text:'#1a1008', subtext:'#6a5030', spouse:'#8a6820', expand:'#8a6820' },
+    contrast: { male:'#003366', female:'#660033', unknown:'#333',    maleBorder:'#fff',    femaleBorder:'#fff',    unknownBorder:'#fff',    focusBorder:'#ff0',    text:'#fff',    subtext:'#ccc',    spouse:'#ff0',    expand:'#ff0' },
+    colorful: { male:'#1a4a8a', female:'#8a1a4a', unknown:'#2a4a2a', maleBorder:'#4a9aff', femaleBorder:'#ff4a9a', unknownBorder:'#4aff4a', focusBorder:'#ffd700', text:'#fff',    subtext:'#ddd',    spouse:'#ffd700', expand:'#ffd700' }
+};
+
+document.getElementById('style-layout').onchange = e => { styleLayout = e.target.value; if (currentData) redraw(); };
+document.getElementById('style-node').onchange   = e => { styleNode = e.target.value;   if (currentData) redraw(); };
+document.getElementById('style-line').onchange   = e => { styleLine = e.target.value;   if (currentData) redraw(); };
+document.getElementById('style-theme').onchange  = e => {
+    styleTheme = e.target.value;
+    document.body.classList.remove('theme-light','theme-contrast','theme-colorful');
+    if (styleTheme === 'light') document.body.classList.add('theme-light');
+    if (styleTheme === 'contrast') document.body.classList.add('theme-contrast');
+    if (currentData) redraw();
+};
 
 async function loadTree(memberId) {
     document.getElementById('loading').style.display = 'flex';
+    manualExpanded.clear();
+    manualCollapsed.clear();
     const url = "{% url 'family_tree_json' %}" + (memberId ? '?id=' + memberId : '');
     try {
         const res = await fetch(url);
         const data = await res.json();
         document.getElementById('loading').style.display = 'none';
-        if (!data.tree && !data.ancestors) { showEmpty(); return; }
+        if (!data.tree) { showEmpty(); return; }
         currentId = data.focused_id;
+        currentData = data;
         populateJump(data.all_members, data.focused_id);
         updateBreadcrumb(data.focused_name);
-        renderTree(data);
+        redraw();
     } catch(e) {
         document.getElementById('loading').innerHTML = '<div style="font-family:Cinzel,serif;color:#7a6430;">Could not load tree data</div>';
     }
@@ -56,182 +127,184 @@ function populateJump(members, focusedId) {
     sel.innerHTML = '<option value="">Jump to member...</option>';
     members.forEach(m => {
         const opt = document.createElement('option');
-        opt.value = m.id;
-        opt.textContent = m.name;
+        opt.value = m.id; opt.textContent = m.name;
         if (m.id === focusedId) opt.selected = true;
         sel.appendChild(opt);
     });
     sel.onchange = () => { if (sel.value) loadTree(sel.value); };
 }
 
-function updateBreadcrumb(name) {
-    document.getElementById('breadcrumb').textContent = 'Viewing: ' + name;
-}
+function updateBreadcrumb(name) { document.getElementById('breadcrumb').textContent = 'Viewing: ' + name; }
 
 function showEmpty() {
-    document.getElementById('loading').innerHTML = '<div style="text-align:center;"><div style="font-size:2rem;opacity:0.3;margin-bottom:1rem;">🌳</div><div style="font-family:Cinzel,serif;color:#7a6430;margin-bottom:0.75rem;">No Family Members Yet</div><a href="/accounts/add-member/" style="color:#c9a84c;text-decoration:none;font-family:Cinzel,serif;font-size:0.8rem;border:1px solid #7a6430;padding:0.5rem 1.2rem;">Add First Member</a></div>';
+    document.getElementById('loading').innerHTML = '<div style="text-align:center;"><div style="font-size:2rem;opacity:0.3;margin-bottom:1rem;">🌳</div><div style="font-family:Cinzel,serif;color:#7a6430;margin-bottom:0.75rem;">No Members Yet</div><a href="/accounts/add-member/" style="color:#c9a84c;text-decoration:none;font-family:Cinzel,serif;font-size:0.8rem;border:1px solid #7a6430;padding:0.5rem 1.2rem;">Add First Member</a></div>';
 }
 
-function renderTree(data) {
+function getRx() { return styleNode==='box'?3:styleNode==='rounded'?16:32; }
+function getTheme() { return THEMES[styleTheme]||THEMES.dark; }
+
+function makePath(x1,y1,x2,y2) {
+    if (styleLine==='straight') return `M${x1},${y1}L${x2},${y2}`;
+    if (styleLine==='curve') {
+        if (styleLayout==='TB') { const m=(y1+y2)/2; return `M${x1},${y1}C${x1},${m},${x2},${m},${x2},${y2}`; }
+        const m=(x1+x2)/2; return `M${x1},${y1}C${m},${y1},${m},${y2},${x2},${y2}`;
+    }
+    if (styleLayout==='TB') { const m=(y1+y2)/2; return `M${x1},${y1}L${x1},${m}L${x2},${m}L${x2},${y2}`; }
+    const m=(x1+x2)/2; return `M${x1},${y1}L${m},${y1}L${m},${y2}L${x2},${y2}`;
+}
+
+function isExpanded(node, depth) {
+    if (manualCollapsed.has(node.id)) return false;
+    if (manualExpanded.has(node.id)) return true;
+    return depth < getVisibleGenerations(currentScale);
+}
+
+function subtreeWidth(node, depth) {
+    if (!node) return NODE_W + 50;
+    const children = node.children || [];
+    if (children.length === 0 || !isExpanded(node, depth)) return NODE_W + 50;
+    return children.reduce((sum, child) => sum + subtreeWidth(child, depth+1), 0);
+}
+
+function collectNodes(node, main, cross, depth, allNodes, allLinks, layout) {
+    if (!node) return;
+    const isTB = layout==='TB';
+    const x = isTB ? cross : (layout==='LR' ? main : -main);
+    const y = isTB ? main : cross;
+    const hasHiddenChildren = (node.children||[]).length > 0 && !isExpanded(node, depth);
+    allNodes.push({...node, _x:x, _y:y, depth, hasHiddenChildren, expanded: isExpanded(node, depth)});
+    if (!isExpanded(node, depth)) return;
+    const children = node.children || [];
+    if (children.length === 0) return;
+    const VSEP = isTB ? 150 : 260;
+    const widths = children.map(c => subtreeWidth(c, depth+1));
+    const total = widths.reduce((a,b)=>a+b,0);
+    let offset = -total/2;
+    children.forEach((child, i) => {
+        const cc = cross + offset + widths[i]/2;
+        const cm = main + VSEP;
+        const cx = isTB ? cc : (layout==='LR' ? cm : -cm);
+        const cy = isTB ? cm : cc;
+        const ex1 = isTB ? x : (layout==='LR' ? x+NODE_W/2 : x-NODE_W/2);
+        const ey1 = isTB ? y+NODE_H/2 : y;
+        const ex2 = isTB ? cx : (layout==='LR' ? cx-NODE_W/2 : cx+NODE_W/2);
+        const ey2 = isTB ? cy-NODE_H/2 : cy;
+        allLinks.push({x1:ex1,y1:ey1,x2:ex2,y2:ey2,type:'desc'});
+        collectNodes(child, cm, cc, depth+1, allNodes, allLinks, layout);
+        offset += widths[i];
+    });
+}
+
+function redraw() {
+    if (!currentData) return;
     const container = document.getElementById('tree-container');
     const W = container.clientWidth, H = container.clientHeight;
     d3.select('#tree-svg').selectAll('*').remove();
     const svg = d3.select('#tree-svg');
     svgEl = svg;
     const zoomGroup = svg.append('g');
-    zoomBehavior = d3.zoom().scaleExtent([0.1, 3]).on('zoom', e => zoomGroup.attr('transform', e.transform));
-    svg.call(zoomBehavior);
-
-    const allNodes = [];
-    const allLinks = [];
-    const VSEP = 110, HSEP = 200;
-
-    // Draw descendants (below center)
-    function placeDescendants(node, x, y, level) {
-        if (!node) return;
-        node._x = x; node._y = y;
-        allNodes.push({ ...node, _x: x, _y: y, type: level === 0 ? 'focus' : 'desc' });
-        if (node.children && node.children.length > 0) {
-            const total = (node.children.length - 1) * HSEP;
-            node.children.forEach((child, i) => {
-                const cx = x - total / 2 + i * HSEP;
-                const cy = y + VSEP;
-                allLinks.push({ x1: x, y1: y + NODE_H/2, x2: cx, y2: cy - NODE_H/2, type: 'desc' });
-                placeDescendants(child, cx, cy, level + 1);
-            });
-        }
-    }
-
-    // Draw ancestors (above center)
-    function placeAncestors(node, x, y, level) {
-        if (!node || level > 3) return;
-        if (level === 0) return; // skip focus node, already placed
-        allNodes.push({ ...node, _x: x, _y: y, type: 'anc' });
-        if (node.father) {
-            const fx = x - HSEP / 2;
-            const fy = y - VSEP;
-            allLinks.push({ x1: x, y1: y - NODE_H/2, x2: fx, y2: fy + NODE_H/2, type: 'anc' });
-            placeAncestors(node.father, fx, fy, level + 1);
-        }
-        if (node.mother) {
-            const mx = x + HSEP / 2;
-            const my = y - VSEP;
-            allLinks.push({ x1: x, y1: y - NODE_H/2, x2: mx, y2: my + NODE_H/2, type: 'anc' });
-            placeAncestors(node.mother, mx, my, level + 1);
-        }
-    }
-
-    // Place focused member at center
-    if (data.tree) placeDescendants(data.tree, 0, 0, 0);
-    if (data.ancestors) {
-        // father side
-        if (data.ancestors.father) {
-            const fx = -HSEP / 2, fy = -VSEP;
-            allLinks.push({ x1: 0, y1: -NODE_H/2, x2: fx, y2: fy + NODE_H/2, type: 'anc' });
-            allNodes.push({ ...data.ancestors.father, _x: fx, _y: fy, type: 'anc' });
-            placeAncestors(data.ancestors.father, fx, fy, 1);
-        }
-        if (data.ancestors.mother) {
-            const mx = HSEP / 2, my = -VSEP;
-            allLinks.push({ x1: 0, y1: -NODE_H/2, x2: mx, y2: my + NODE_H/2, type: 'anc' });
-            allNodes.push({ ...data.ancestors.mother, _x: mx, _y: my, type: 'anc' });
-            placeAncestors(data.ancestors.mother, mx, my, 1);
-        }
-    }
-
-    // Remove duplicate nodes (keep first occurrence)
-    const seen = new Set();
-    const uniqueNodes = allNodes.filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
-
-    // Draw links
-    zoomGroup.selectAll('.link').data(allLinks).enter().append('line')
-        .attr('class', d => d.type === 'anc' ? 'ancestor-link' : 'link')
-        .attr('x1', d => d.x1).attr('y1', d => d.y1)
-        .attr('x2', d => d.x2).attr('y2', d => d.y2);
-
-    // Draw nodes
-    const nodeGroups = zoomGroup.selectAll('.node-group').data(uniqueNodes).enter()
-        .append('g').attr('class', 'node-group')
-        .attr('transform', d => `translate(${d._x - NODE_W/2}, ${d._y - NODE_H/2})`);
-
-    // Node background
-    nodeGroups.append('rect')
-        .attr('width', NODE_W).attr('height', NODE_H).attr('rx', 4)
-        .attr('fill', d => {
-            if (d.type === 'focus') return d.gender === 'M' ? '#1e3550' : d.gender === 'F' ? '#3d1e35' : '#1e1e2a';
-            if (d.type === 'anc') return d.gender === 'M' ? '#162540' : d.gender === 'F' ? '#2d1628' : '#16161a';
-            return d.gender === 'M' ? '#1e3550' : d.gender === 'F' ? '#3d1e35' : '#1e1e2a';
-        })
-        .attr('stroke', d => {
-            if (d.type === 'focus') return '#c9a84c';
-            return d.gender === 'M' ? '#4a8abf' : d.gender === 'F' ? '#bf4a8a' : '#5a5a6a';
-        })
-        .attr('stroke-width', d => d.type === 'focus' ? 2 : 1)
-        .style('filter', 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))');
-
-    // Top color bar
-    nodeGroups.append('rect').attr('width', NODE_W).attr('height', 3).attr('rx', 3)
-        .attr('fill', d => d.gender === 'M' ? '#4a8abf' : d.gender === 'F' ? '#bf4a8a' : '#5a5a6a');
-
-    // Name
-    nodeGroups.append('text')
-        .attr('x', NODE_W/2).attr('y', 22).attr('text-anchor', 'middle')
-        .attr('fill', '#e8e0d0').attr('font-family', 'Crimson Text,serif').attr('font-size', 13).attr('font-weight', 600)
-        .text(d => d.name || '');
-
-    // DOB
-    nodeGroups.append('text')
-        .attr('x', NODE_W/2).attr('y', 36).attr('text-anchor', 'middle')
-        .attr('fill', '#8a8070').attr('font-family', 'Crimson Text,serif').attr('font-size', 10).attr('font-style', 'italic')
-        .text(d => d.dob ? `b. ${d.dob}` : '');
-
-    // Spouse name (clickable)
-    nodeGroups.filter(d => d.spouse_name).append('text')
-        .attr('x', NODE_W/2).attr('y', 52).attr('text-anchor', 'middle')
-        .attr('fill', '#c9a84c').attr('font-family', 'Crimson Text,serif').attr('font-size', 11)
-        .attr('cursor', 'pointer')
-        .text(d => d.spouse_name ? `♦ ${d.spouse_name}` : '')
-        .on('click', function(event, d) {
-            event.stopPropagation();
-            if (d.spouse_id) loadTree(d.spouse_id);
-        });
-
-    // Click node to re-center
-    nodeGroups.on('click', function(event, d) {
-        if (d.id !== currentId) loadTree(d.id);
+    zoomBehavior = d3.zoom().scaleExtent([0.05,3]).on('zoom', e => {
+        zoomGroup.attr('transform', e.transform);
+        const newScale = e.transform.k;
+        if (Math.abs(newScale - currentScale) > 0.05) { currentScale = newScale; redraw(); }
     });
-
-    // Tooltip
+    svg.call(zoomBehavior);
+    const T = getTheme();
+    const allNodes = [], allLinks = [];
+    collectNodes(currentData.tree, 0, 0, 0, allNodes, allLinks, styleLayout);
+    if (currentData.ancestors) {
+        const VSEP = styleLayout==='TB' ? 150 : 260;
+        if (currentData.ancestors.father) {
+            allNodes.push({...currentData.ancestors.father, _x:styleLayout==='TB'?-VSEP/2:-VSEP, _y:styleLayout==='TB'?-VSEP:-VSEP/2, depth:-1, type:'anc'});
+            allLinks.push({x1:styleLayout==='TB'?0:(styleLayout==='LR'?-NODE_W/2:NODE_W/2), y1:styleLayout==='TB'?-NODE_H/2:0, x2:styleLayout==='TB'?-VSEP/2:(styleLayout==='LR'?-VSEP-NODE_W/2:-VSEP+NODE_W/2), y2:styleLayout==='TB'?-VSEP+NODE_H/2:-VSEP/2, type:'anc'});
+        }
+        if (currentData.ancestors.mother) {
+            allNodes.push({...currentData.ancestors.mother, _x:styleLayout==='TB'?VSEP/2:VSEP, _y:styleLayout==='TB'?-VSEP:VSEP/2, depth:-1, type:'anc'});
+            allLinks.push({x1:styleLayout==='TB'?0:(styleLayout==='LR'?-NODE_W/2:NODE_W/2), y1:styleLayout==='TB'?-NODE_H/2:0, x2:styleLayout==='TB'?VSEP/2:(styleLayout==='LR'?VSEP-NODE_W/2:VSEP+NODE_W/2), y2:styleLayout==='TB'?-VSEP+NODE_H/2:VSEP/2, type:'anc'});
+        }
+    }
+    const seen = new Set();
+    const uniqueNodes = allNodes.filter(n => { if(seen.has(n.id)) return false; seen.add(n.id); return true; });
+    zoomGroup.selectAll('path.tree-link').data(allLinks).enter().append('path')
+        .attr('class', d=>d.type==='anc'?'ancestor-link':'link')
+        .attr('d', d=>makePath(d.x1,d.y1,d.x2,d.y2));
+    const nodeGroups = zoomGroup.selectAll('.node-group').data(uniqueNodes).enter()
+        .append('g').attr('class','node-group')
+        .attr('transform', d=>`translate(${d._x-NODE_W/2},${d._y-NODE_H/2})`);
+    nodeGroups.append('rect')
+        .attr('width',NODE_W).attr('height',NODE_H).attr('rx',getRx())
+        .attr('fill', d=>d.gender==='M'?T.male:d.gender==='F'?T.female:T.unknown)
+        .attr('stroke', d=>(d.id===currentId)?T.focusBorder:d.gender==='M'?T.maleBorder:d.gender==='F'?T.femaleBorder:T.unknownBorder)
+        .attr('stroke-width', d=>d.id===currentId?2:1)
+        .style('filter','drop-shadow(0 4px 12px rgba(0,0,0,0.4))');
+    nodeGroups.append('rect').attr('width',NODE_W).attr('height',3).attr('rx',getRx())
+        .attr('fill', d=>d.gender==='M'?T.maleBorder:d.gender==='F'?T.femaleBorder:T.unknownBorder);
+    nodeGroups.append('text').attr('x',NODE_W/2).attr('y',26).attr('text-anchor','middle')
+        .attr('fill',T.text).attr('font-family','Crimson Text,serif').attr('font-size',16).attr('font-weight',600)
+        .text(d=>d.name||'');
+    nodeGroups.append('text').attr('x',NODE_W/2).attr('y',44).attr('text-anchor','middle')
+        .attr('fill',T.subtext).attr('font-family','Crimson Text,serif').attr('font-size',13).attr('font-style','italic')
+        .text(d=>d.dob?`b. ${d.dob}`:'');
+    nodeGroups.filter(d=>d.spouse_name).append('text')
+        .attr('x',NODE_W/2).attr('y',62).attr('text-anchor','middle')
+        .attr('fill',T.spouse).attr('font-family','Crimson Text,serif').attr('font-size',13).attr('cursor','pointer')
+        .text(d=>d.spouse_name?`♦ ${d.spouse_name}`:'')
+        .on('click', function(event,d) { event.stopPropagation(); if(d.spouse_id) loadTree(d.spouse_id); });
+    nodeGroups.filter(d=>d.hasHiddenChildren).append('text')
+        .attr('class','expand-indicator')
+        .attr('x',NODE_W-12).attr('y',16).attr('text-anchor','middle')
+        .attr('fill',T.expand).attr('font-family','Cinzel,serif').attr('font-size',14).text('+');
+    nodeGroups.filter(d=>!d.hasHiddenChildren && (d.children||[]).length>0 && d.expanded).append('text')
+        .attr('class','expand-indicator')
+        .attr('x',NODE_W-12).attr('y',16).attr('text-anchor','middle')
+        .attr('fill',T.subtext).attr('font-family','Cinzel,serif').attr('font-size',14).text('−');
+    nodeGroups.on('click', function(event, d) {
+        if ((d.children||[]).length > 0) {
+            if (manualCollapsed.has(d.id)) { manualCollapsed.delete(d.id); manualExpanded.add(d.id); }
+            else if (d.hasHiddenChildren) { manualExpanded.add(d.id); }
+            else { manualCollapsed.add(d.id); }
+            redraw();
+        } else if (d.id !== currentId) {
+            loadTree(d.id);
+        }
+    });
     const tooltip = document.getElementById('tooltip');
-    nodeGroups.on('mousemove', function(event, d) {
+    nodeGroups.on('mousemove', function(event,d) {
         document.getElementById('tt-name').textContent = d.name;
-        const details = [];
-        if (d.dob) details.push('Born: ' + d.dob);
-        if (d.spouse_name) details.push('Spouse: ' + d.spouse_name);
-        if (d.type === 'focus') details.push('← focused');
-        document.getElementById('tt-detail').textContent = details.join(' · ');
-        tooltip.style.opacity = 1;
-        tooltip.style.left = (event.clientX + 14) + 'px';
-        tooltip.style.top = (event.clientY - 10) + 'px';
-    }).on('mouseleave', () => tooltip.style.opacity = 0);
-
-    // Fit to screen
-    fitNodes(uniqueNodes, W, H);
-    document.getElementById('btn-fit').onclick = () => fitNodes(uniqueNodes, W, H);
-    document.getElementById('btn-zoom-in').onclick = () => svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.4);
-    document.getElementById('btn-zoom-out').onclick = () => svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7);
+        const det=[];
+        if(d.dob) det.push('Born: '+d.dob);
+        if(d.spouse_name) det.push('Spouse: '+d.spouse_name);
+        if(d.hasHiddenChildren) det.push('Click to expand');
+        document.getElementById('tt-detail').textContent = det.join(' · ');
+        tooltip.style.opacity=1;
+        tooltip.style.left=(event.clientX+14)+'px';
+        tooltip.style.top=(event.clientY-10)+'px';
+    }).on('mouseleave',()=>tooltip.style.opacity=0);
+    const xs = uniqueNodes.map(d=>d._x);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const centerX = (minX + maxX) / 2;
+    const focusNode = uniqueNodes.find(n=>n.id===currentId);
+    const topY = focusNode ? focusNode._y : 0;
+    const tx = W/2 - centerX * currentScale;
+    const ty = 80 - topY * currentScale;
+    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx,ty).scale(currentScale));
+    document.getElementById('btn-fit').onclick = () => { currentScale=0.8; fitNodes(uniqueNodes,W,H); };
+    document.getElementById('btn-zoom-in').onclick = () => { currentScale=Math.min(currentScale*1.4,3); svg.transition().duration(300).call(zoomBehavior.scaleBy,1.4); };
+    document.getElementById('btn-zoom-out').onclick = () => { currentScale=Math.max(currentScale/1.4,0.05); svg.transition().duration(300).call(zoomBehavior.scaleBy,1/1.4); };
 }
 
 function fitNodes(nodes, W, H) {
-    if (!nodes.length) return;
-    const xs = nodes.map(d => d._x), ys = nodes.map(d => d._y);
-    const minX = Math.min(...xs) - NODE_W/2 - 30, maxX = Math.max(...xs) + NODE_W/2 + 30;
-    const minY = Math.min(...ys) - NODE_H/2 - 30, maxY = Math.max(...ys) + NODE_H/2 + 30;
-    const scale = Math.min(W/(maxX-minX), H/(maxY-minY), 1.5) * 0.88;
+    if(!nodes.length) return;
+    const xs=nodes.map(d=>d._x), ys=nodes.map(d=>d._y);
+    const minX=Math.min(...xs)-NODE_W/2-30, maxX=Math.max(...xs)+NODE_W/2+30;
+    const minY=Math.min(...ys)-NODE_H/2-30, maxY=Math.max(...ys)+NODE_H/2+30;
+    const scale = 3;
+    currentScale = scale;
     svgEl.transition().duration(600).call(zoomBehavior.transform,
-        d3.zoomIdentity.translate((W-(maxX-minX)*scale)/2 - minX*scale, (H-(maxY-minY)*scale)/2 - minY*scale).scale(scale));
+        d3.zoomIdentity.translate((W-(maxX-minX)*scale)/2-minX*scale,(H-(maxY-minY)*scale)/2-minY*scale).scale(scale));
 }
 
 loadTree(null);
 </script>
 {% endblock %}
+'@ | Set-Content -Path "C:\Users\dingo\family_tree\accounts\templates\accounts\visual_tree.html" -Encoding UTF8

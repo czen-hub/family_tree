@@ -113,7 +113,7 @@ def family_tree_json(request):
         children = member.get_children()
         return {
             'id': member.pk,
-            'name': f"{member.first_name} {member.last_name}",
+            'name': str(member),
             'full_name': f"{member.first_name} {member.middle_name} {member.last_name}".strip(),
             'gender': member.gender,
             'dob': str(member.date_of_birth) if member.date_of_birth else '',
@@ -130,7 +130,7 @@ def family_tree_json(request):
             return None
         node = {
             'id': member.pk,
-            'name': f"{member.first_name} {member.last_name}",
+            'name': str(member),
             'gender': member.gender,
             'dob': str(member.date_of_birth) if member.date_of_birth else '',
             'spouse_id': member.spouse.pk if member.spouse else None,
@@ -146,24 +146,36 @@ def family_tree_json(request):
         except FamilyMember.DoesNotExist:
             return JsonResponse({'error': 'Not found'}, status=404)
     else:
-        member = FamilyMember.objects.filter(father__isnull=True).first()
+        member = FamilyMember.objects.filter(father__isnull=True).order_by('date_of_birth').first()
         if not member:
             member = FamilyMember.objects.first()
         if not member:
             return JsonResponse({'tree': None, 'ancestors': None})
 
     return JsonResponse({
-        'focused_id': member.pk,
-        'focused_name': f"{member.first_name} {member.last_name}",
-        'tree': build_descendants(member),
-        'ancestors': build_ancestors(member),
-        'all_members': [
-            {'id': m.pk, 'name': f"{m.first_name} {m.last_name}"}
-            for m in FamilyMember.objects.all()
-        ]
-    })
+    'focused_id': member.pk,
+    'focused_name': str(member),
+    'tree': build_descendants(member),
+    'ancestors': build_ancestors(member),
+    'all_members': [
+        {'id': m.pk, 'name': str(m), 'gender': m.gender, 'last_name': m.last_name}
+        for m in FamilyMember.objects.all()
+    ]
+})
 
 
 @login_required
 def visual_tree(request):
     return render(request, 'accounts/visual_tree.html')
+
+@login_required
+def edit_member(request, pk):
+    member = get_object_or_404(FamilyMember, pk=pk)
+    if request.method == 'POST':
+        form = FamilyMemberForm(request.POST, instance=member)
+        if form.is_valid():
+            form.save()
+            return redirect('family_detail', pk=pk)
+    else:
+        form = FamilyMemberForm(instance=member)
+    return render(request, 'accounts/edit_member.html', {'form': form, 'member': member})

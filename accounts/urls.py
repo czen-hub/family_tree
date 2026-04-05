@@ -12,4 +12,5 @@ urlpatterns = [
     path('add-member/', views.add_member, name='add_member'),
     path('tree/', views.visual_tree, name='visual_tree'),
     path('api/tree/', views.family_tree_json, name='family_tree_json'),
+    path('family/<int:pk>/edit/', views.edit_member, name='edit_member'),
 ]

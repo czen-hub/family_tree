@@ -7,6 +7,10 @@ LAST_NAME_CHOICES = [
     ('Shangba', 'Shangba'),
     ('Dongba', 'Dongba'),
     ('Yeba', 'Yeba'),
+    ('Thapa', 'Thapa'),
+    ('Thongso', 'Thongso'),
+    ('Tamang', 'Tamang'),
+    ('Other','Other'),
 ]
 
 COUNTRY_CHOICES = [

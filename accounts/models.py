@@ -47,7 +47,9 @@ class FamilyMember(models.Model):
         ))
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        if self.middle_name:
+            return f"{self.first_name} {self.middle_name} {self.last_name[0]}."
+        return f"{self.first_name} {self.last_name[0]}."
 
 
 

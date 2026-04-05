@@ -1,11 +1,11 @@
 ﻿{% extends 'accounts/base.html' %}
-{% block title %}LINK ROOT — Add Member{% endblock %}
+{% block title %}LINK ROOT — Edit Member{% endblock %}
 {% block content %}
 <div class="main" style="max-width:640px;">
 
   <div class="page-header">
-    <div class="page-title">Add Family Member</div>
-    <div class="page-subtitle">Register a new member to the tree</div>
+    <div class="page-title">Edit Member</div>
+    <div class="page-subtitle">{{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}</div>
   </div>
 
   <div class="card">
@@ -13,8 +13,8 @@
       {% csrf_token %}
       {{ form.as_p }}
       <div style="margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border); display:flex; gap:0.75rem; flex-wrap:wrap;">
-        <button type="submit" class="btn">Add to Family Tree</button>
-        <a href="{% url 'family_list' %}" class="btn" style="border-color:var(--border); color:var(--text-dim);">Cancel</a>
+        <button type="submit" class="btn">Save Changes</button>
+        <a href="{% url 'family_detail' member.pk %}" class="btn" style="border-color:var(--border); color:var(--text-dim);">Cancel</a>
       </div>
     </form>
   </div>
@@ -64,7 +64,8 @@ function filterSelect(select, allOptions, lastName, gender) {
   select.innerHTML = '';
   allOptions.forEach(opt => {
     if (opt.value === '') { select.appendChild(opt.cloneNode(true)); return; }
-    const matchesLastName = !lastName || opt.dataset.lastname === lastName;
+    const text = opt.text.toLowerCase();
+    const matchesLastName = !lastName || text.includes(lastName.toLowerCase());
     const matchesGender = !gender || opt.dataset.gender === gender;
     if (matchesLastName && matchesGender) select.appendChild(opt.cloneNode(true));
   });
@@ -76,22 +77,14 @@ async function tagOptionsWithGender() {
     const res = await fetch("{% url 'family_tree_json' %}");
     const data = await res.json();
     if (!data.all_members) return;
-    const genderMap = {}, lastNameMap = {};
-    data.all_members.forEach(m => {
-      genderMap[String(m.id)] = m.gender;
-      lastNameMap[String(m.id)] = m.last_name;
-    });
+    const genderMap = {};
+    data.all_members.forEach(m => { genderMap[m.id] = m.gender; });
     [fatherOptions, motherOptions].forEach(opts => {
-      opts.forEach(opt => {
-        if (opt.value) {
-          opt.dataset.gender = genderMap[opt.value] || '';
-          opt.dataset.lastname = lastNameMap[opt.value] || '';
-        }
-      });
+      opts.forEach(opt => { if (opt.value) opt.dataset.gender = genderMap[opt.value] || ''; });
     });
     filterSelect(fatherSelect, fatherOptions, '', 'M');
     filterSelect(motherSelect, motherOptions, '', 'F');
-  } catch(e) { console.error('Tag error:', e); }
+  } catch(e) {}
 }
 
 fatherFilter.addEventListener('change', () => filterSelect(fatherSelect, fatherOptions, fatherFilter.value, 'M'));
