@@ -6,35 +6,11 @@
 <div class="page-title">Family Tree</div>
 <div id="breadcrumb" style="color:var(--text-dim); font-style:italic; font-size:0.9rem; margin-top:0.2rem;"></div>
 </div>
-<div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+<div style="display:flex; gap:0.5rem; align-items:center;">
 <select id="member-jump" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Crimson Text,serif; font-size:0.9rem; outline:none; cursor:pointer;"><option value="">Jump to member...</option></select>
-<select id="style-layout" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
-<option value="TB">↓ Top to Bottom</option>
-<option value="LR">→ Left to Right</option>
-<option value="RL">← Right to Left</option>
-</select>
-<select id="style-node" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
-<option value="box">▬ Box</option>
-<option value="rounded">▣ Rounded</option>
-<option value="pill">⬭ Pill</option>
-</select>
-<select id="style-line" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
-<option value="elbow">⌐ Elbow</option>
-<option value="curve">⌒ Curved</option>
-<option value="straight">/ Straight</option>
-</select>
-<select id="style-theme" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Cinzel,serif; font-size:0.72rem; outline:none; cursor:pointer;">
-<option value="dark">◆ Dark Gold</option>
-<option value="light">◇ Light Parchment</option>
-<option value="contrast">◈ High Contrast</option>
-<option value="colorful">❋ Colorful</option>
-</select>
-<button class="btn btn-sm" id="btn-fit">Fit</button>
-<button class="btn btn-sm" id="btn-zoom-in">＋</button>
-<button class="btn btn-sm" id="btn-zoom-out">－</button>
 </div>
 </div>
-<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden;">
+<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de;">
 <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;"><div style="font-family:'Cinzel',serif; font-size:0.9rem; color:#7a6430; letter-spacing:0.15em; animation:pulse 1.5s ease-in-out infinite;">TRACING LINEAGE…</div></div>
 <svg id="tree-svg" style="width:100%; height:100%; cursor:grab;"></svg>
 </div>
@@ -48,11 +24,15 @@
 .ancestor-link { fill:none; stroke:#7a6430; stroke-width:1px; stroke-dasharray:5 3; }
 .node-group { cursor:pointer; }
 .expand-indicator { pointer-events:none; }
-body.theme-light { background:#f5f0e8; }
-body.theme-light .link { stroke:#c8bea8; }
-body.theme-light .ancestor-link { stroke:#a88840; }
-body.theme-contrast .link { stroke:#fff; }
+
+/* Theme overrides for tree container background and link colors */
+body.theme-light  #tree-container { background:#ede8de; }
+body.theme-light  .link           { stroke:#c8bea8; }
+body.theme-light  .ancestor-link  { stroke:#a88840; }
+body.theme-contrast #tree-container { background:#000; }
+body.theme-contrast .link         { stroke:#fff; }
 body.theme-contrast .ancestor-link { stroke:#aaa; }
+body.theme-colorful #tree-container { background:#0a0a14; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
@@ -62,10 +42,10 @@ let zoomBehavior = null;
 let svgEl = null;
 let currentData = null;
 let styleLayout = 'TB';
-let styleNode = 'box';
+let styleNode = 'rounded';
 let styleLine = 'elbow';
-let styleTheme = 'dark';
-let currentScale = 3;
+let styleTheme = 'light';
+let currentScale = 0.7;
 let manualExpanded = new Set();
 let manualCollapsed = new Set();
 
@@ -91,16 +71,8 @@ const THEMES = {
     colorful: { male:'#1a4a8a', female:'#8a1a4a', unknown:'#2a4a2a', maleBorder:'#4a9aff', femaleBorder:'#ff4a9a', unknownBorder:'#4aff4a', focusBorder:'#ffd700', text:'#fff',    subtext:'#ddd',    spouse:'#ffd700', expand:'#ffd700' }
 };
 
-document.getElementById('style-layout').onchange = e => { styleLayout = e.target.value; if (currentData) redraw(); };
-document.getElementById('style-node').onchange   = e => { styleNode = e.target.value;   if (currentData) redraw(); };
-document.getElementById('style-line').onchange   = e => { styleLine = e.target.value;   if (currentData) redraw(); };
-document.getElementById('style-theme').onchange  = e => {
-    styleTheme = e.target.value;
-    document.body.classList.remove('theme-light','theme-contrast','theme-colorful');
-    if (styleTheme === 'light') document.body.classList.add('theme-light');
-    if (styleTheme === 'contrast') document.body.classList.add('theme-contrast');
-    if (currentData) redraw();
-};
+// Shape: rounded, theme: light — locked
+document.body.classList.add('theme-light');
 
 async function loadTree(memberId) {
     document.getElementById('loading').style.display = 'flex';
@@ -239,6 +211,10 @@ function redraw() {
         .style('filter','drop-shadow(0 4px 12px rgba(0,0,0,0.4))');
     nodeGroups.append('rect').attr('width',NODE_W).attr('height',3).attr('rx',getRx())
         .attr('fill', d=>d.gender==='M'?T.maleBorder:d.gender==='F'?T.femaleBorder:T.unknownBorder);
+    // Generation label: G1 for root, G2/G3... for descendants, P1 for ancestors
+    nodeGroups.append('text').attr('x',10).attr('y',16).attr('text-anchor','start')
+        .attr('fill',T.focusBorder).attr('font-family','Cinzel,serif').attr('font-size',10).attr('opacity',0.85)
+        .text(d => d.depth === -1 ? 'P1' : d.depth === 0 ? 'G1' : 'G' + (d.depth + 1));
     nodeGroups.append('text').attr('x',NODE_W/2).attr('y',26).attr('text-anchor','middle')
         .attr('fill',T.text).attr('font-family','Crimson Text,serif').attr('font-size',16).attr('font-weight',600)
         .text(d=>d.name||'');
@@ -288,9 +264,7 @@ function redraw() {
     const tx = W/2 - centerX * currentScale;
     const ty = 80 - topY * currentScale;
     svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx,ty).scale(currentScale));
-    document.getElementById('btn-fit').onclick = () => { currentScale=0.8; fitNodes(uniqueNodes,W,H); };
-    document.getElementById('btn-zoom-in').onclick = () => { currentScale=Math.min(currentScale*1.4,3); svg.transition().duration(300).call(zoomBehavior.scaleBy,1.4); };
-    document.getElementById('btn-zoom-out').onclick = () => { currentScale=Math.max(currentScale/1.4,0.05); svg.transition().duration(300).call(zoomBehavior.scaleBy,1/1.4); };
+    // zoom controls removed
 }
 
 function fitNodes(nodes, W, H) {
@@ -298,7 +272,7 @@ function fitNodes(nodes, W, H) {
     const xs=nodes.map(d=>d._x), ys=nodes.map(d=>d._y);
     const minX=Math.min(...xs)-NODE_W/2-30, maxX=Math.max(...xs)+NODE_W/2+30;
     const minY=Math.min(...ys)-NODE_H/2-30, maxY=Math.max(...ys)+NODE_H/2+30;
-    const scale = 3;
+    const scale = Math.min(W/(maxX-minX), H/(maxY-minY), 1.5) * 0.85;
     currentScale = scale;
     svgEl.transition().duration(600).call(zoomBehavior.transform,
         d3.zoomIdentity.translate((W-(maxX-minX)*scale)/2-minX*scale,(H-(maxY-minY)*scale)/2-minY*scale).scale(scale));
@@ -307,4 +281,3 @@ function fitNodes(nodes, W, H) {
 loadTree(null);
 </script>
 {% endblock %}
-'@ | Set-Content -Path "C:\Users\dingo\family_tree\accounts\templates\accounts\visual_tree.html" -Encoding UTF8
