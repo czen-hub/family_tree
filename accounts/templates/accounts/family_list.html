@@ -12,14 +12,18 @@
   </div>
 
   {% if members %}
+
+  <!-- scroll hint text on mobile -->
+  <p style="display:none; color:var(--text-dim); font-size:0.8rem; font-style:italic; margin-bottom:0.5rem;" id="scroll-hint">← swipe to see more →</p>
+
   <div class="card" style="padding:0; overflow:hidden;">
     <div class="table-scroll">
       <table class="data-table" id="members-table">
         <thead>
           <tr>
-            <th style="cursor:pointer; user-select:none; white-space:nowrap;" onclick="sortTable('name')">Name <span id="sort-name"></span></th>
+            <th style="cursor:pointer; user-select:none;" onclick="sortTable('name')">Name <span id="sort-name"></span></th>
             <th style="cursor:pointer; user-select:none;" onclick="sortTable('gender')">Gender <span id="sort-gender"></span></th>
-            <th style="cursor:pointer; user-select:none; white-space:nowrap;" onclick="sortTable('dob')">DOB <span id="sort-dob"></span></th>
+            <th style="cursor:pointer; user-select:none;" onclick="sortTable('dob')">Date of Birth <span id="sort-dob"></span></th>
             <th>Status</th>
             <th>Father</th>
             <th>Mother</th>
@@ -33,25 +37,23 @@
               data-dob="{{ member.date_of_birth|date:'Y-m-d' }}"
               data-lastname="{{ member.last_name }}"
               data-location="{{ member.address }}">
-            <td style="white-space:nowrap;">
-              <a href="{% url 'family_detail' member.pk %}" class="text-link" style="font-weight:600;">{{ member }}</a>
-            </td>
+            <td><a href="{% url 'family_detail' member.pk %}" class="text-link" style="font-weight:600;">{{ member }}</a></td>
             <td>
               {% if member.gender == 'M' %}<span class="badge badge-male">Male</span>
               {% elif member.gender == 'F' %}<span class="badge badge-female">Female</span>
               {% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
             </td>
-            <td style="color:var(--text-dim); font-style:italic; white-space:nowrap;">{{ member.date_of_birth|default:"—" }}</td>
+            <td style="color:var(--text-dim); font-style:italic;">{{ member.date_of_birth|default:"—" }}</td>
             <td>
               {% if member.marital_status == 'Married' %}<span class="badge badge-married">Married</span>
               {% else %}<span class="badge badge-single">Single</span>{% endif %}
             </td>
             <td>
-              {% if member.father %}<a href="{% url 'family_detail' member.father.pk %}" class="text-link" style="white-space:nowrap;">{{ member.father }}</a>
+              {% if member.father %}<a href="{% url 'family_detail' member.father.pk %}" class="text-link">{{ member.father }}</a>
               {% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
             </td>
             <td>
-              {% if member.mother %}<a href="{% url 'family_detail' member.mother.pk %}" class="text-link" style="white-space:nowrap;">{{ member.mother }}</a>
+              {% if member.mother %}<a href="{% url 'family_detail' member.mother.pk %}" class="text-link">{{ member.mother }}</a>
               {% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
             </td>
             <td style="color:var(--text-dim);">{{ member.address|default:"—" }}</td>
@@ -63,9 +65,9 @@
   </div>
 
   {% else %}
-  <div class="card" style="text-align:center; padding:3rem 1.5rem;">
+  <div class="card" style="text-align:center; padding:3rem;">
     <div style="font-size:2rem; opacity:0.3; margin-bottom:1rem;">🌿</div>
-    <div style="font-family:'Cinzel',serif; color:var(--gold-dim); letter-spacing:0.1em; margin-bottom:0.6rem;">No Members Yet</div>
+    <div style="font-family:'Cinzel',serif; color:var(--gold-dim); letter-spacing:0.1em; margin-bottom:0.75rem;">No Members Yet</div>
     <p style="color:var(--text-dim); font-style:italic; margin-bottom:1.5rem;">Be the first to join the family tree.</p>
     <a href="{% url 'add_member' %}" class="btn">Add First Member</a>
   </div>
@@ -74,6 +76,11 @@
 </div>
 
 <script>
+// Show swipe hint on mobile
+if (window.innerWidth < 700) {
+  document.getElementById('scroll-hint').style.display = 'block';
+}
+
 let sortCol = null;
 let sortAsc = true;
 

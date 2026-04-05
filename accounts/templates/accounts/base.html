@@ -6,71 +6,309 @@
 <title>{% block title %}LINK ROOT{% endblock %}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
-:root { --bg: #0d0d0f; --surface: #16161a; --surface2: #1e1e24; --border: #2a2a35; --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: #7a6430; --text: #e8e0d0; --text-dim: #8a8070; --male: #1e3550; --male-border: #4a8abf; --female: #3d1e35; --female-border: #bf4a8a; --error: #bf4a4a; }
+
+:root {
+  --bg: #0d0d0f;
+  --surface: #16161a;
+  --surface2: #1e1e24;
+  --border: #2a2a35;
+  --gold: #c9a84c;
+  --gold-light: #e8c97a;
+  --gold-dim: #7a6430;
+  --text: #e8e0d0;
+  --text-dim: #8a8070;
+  --male: #1e3550;
+  --male-border: #4a8abf;
+  --female: #3d1e35;
+  --female-border: #bf4a8a;
+  --error: #bf4a4a;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'Crimson Text', Georgia, serif; min-height: 100vh; }
-body::before { content: ''; position: fixed; inset: 0; background-image: radial-gradient(ellipse at 15% 20%, rgba(201,168,76,0.04) 0%, transparent 50%), radial-gradient(ellipse at 85% 80%, rgba(201,168,76,0.03) 0%, transparent 50%); pointer-events: none; z-index: 0; }
-nav { position: relative; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; }
-.nav-brand { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700; color: var(--gold); letter-spacing: 0.2em; padding: 1rem 1.5rem 1rem 0; border-right: 1px solid var(--border); margin-right: 1.5rem; text-decoration: none; }
-nav a:not(.nav-brand) { color: var(--text-dim); text-decoration: none; font-size: 0.78rem; letter-spacing: 0.1em; padding: 1rem 0.65rem; transition: color 0.2s; font-family: 'Cinzel', serif; }
-nav a:not(.nav-brand):hover, nav a.active { color: var(--gold); }
-nav a:not(.nav-brand) + a:not(.nav-brand)::before { content: '·'; color: var(--border); margin-right: 0.65rem; }
-.main { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 2.5rem 2rem; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Crimson Text', Georgia, serif;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse at 15% 20%, rgba(201,168,76,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 80%, rgba(201,168,76,0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── NAV ── */
+nav {
+  position: relative;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;        /* never wrap — single row always */
+  overflow-x: auto;         /* scroll if too wide on tiny screens */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;    /* hide scrollbar on Firefox */
+}
+nav::-webkit-scrollbar { display: none; } /* hide scrollbar on Chrome */
+
+.nav-brand {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.18em;
+  padding: 0.9rem 1.1rem 0.9rem 0;
+  border-right: 1px solid var(--border);
+  margin-right: 0.75rem;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+nav a:not(.nav-brand) {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  padding: 0 0.55rem;
+  transition: color 0.2s;
+  font-family: 'Cinzel', serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+nav a:not(.nav-brand):hover,
+nav a.active { color: var(--gold); }
+
+nav a:not(.nav-brand) + a:not(.nav-brand)::before {
+  content: '·';
+  color: var(--border);
+  margin-right: 0.55rem;
+}
+
+/* ── LAYOUT ── */
+.main {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
 .main.wide { max-width: 1200px; }
-.page-header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
-.page-title { font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 600; color: var(--gold-light); letter-spacing: 0.1em; }
-.page-subtitle { color: var(--text-dim); font-style: italic; font-size: 1rem; margin-top: 0.3rem; }
-.card { background: var(--surface); border: 1px solid var(--border); padding: 1.75rem; margin-bottom: 1.25rem; position: relative; }
-.card-title { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold); letter-spacing: 0.08em; margin-bottom: 1rem; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
-.data-table th { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.12em; color: var(--text-dim); text-align: left; padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); font-weight: 400; }
-.data-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+
+/* ── PAGE HEADER ── */
+.page-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.page-title {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(1.2rem, 5vw, 1.6rem);
+  font-weight: 600;
+  color: var(--gold-light);
+  letter-spacing: 0.1em;
+}
+.page-subtitle {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 1rem;
+  margin-top: 0.3rem;
+}
+
+/* ── CARD ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 1.75rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+.card-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+}
+
+/* ── TABLE ── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* subtle hint that it scrolls */
+  -ms-overflow-style: -ms-autohiding-scrollbar;
+}
+.data-table {
+  width: 100%;
+  min-width: 600px;          /* forces scroll on narrow screens */
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+.data-table th {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  text-align: left;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 400;
+  white-space: nowrap;
+  background: var(--surface2);
+}
+.data-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+  white-space: nowrap;
+}
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--surface2); }
+
+/* ── LINKS ── */
 a.text-link { color: var(--gold); text-decoration: none; transition: color 0.2s; }
 a.text-link:hover { color: var(--gold-light); }
-.badge { display: inline-block; padding: 0.2rem 0.6rem; font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.1em; border-radius: 2px; }
-.badge-male { background: var(--male); border: 1px solid var(--male-border); color: #8ab8df; }
-.badge-female { background: var(--female); border: 1px solid var(--female-border); color: #df8ab8; }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  border-radius: 2px;
+}
+.badge-male    { background: var(--male);    border: 1px solid var(--male-border);    color: #8ab8df; }
+.badge-female  { background: var(--female);  border: 1px solid var(--female-border);  color: #df8ab8; }
 .badge-married { background: rgba(201,168,76,0.1); border: 1px solid var(--gold-dim); color: var(--gold); }
-.badge-single { background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim); }
+.badge-single  { background: var(--surface2); border: 1px solid var(--border);        color: var(--text-dim); }
+
+/* ── DETAIL ROWS ── */
 .section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
-.section-title { font-family: 'Cinzel', serif; font-size: 0.85rem; letter-spacing: 0.15em; color: var(--gold-dim); margin-bottom: 1rem; }
-.detail-row { display: flex; gap: 1rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.section-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+  color: var(--gold-dim);
+  margin-bottom: 1rem;
+}
+.detail-row {
+  display: flex;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+  flex-wrap: wrap;
+}
 .detail-row:last-child { border-bottom: none; }
-.detail-label { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--text-dim); min-width: 130px; }
+.detail-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  min-width: 130px;
+  flex-shrink: 0;
+}
 .detail-value { color: var(--text); font-size: 1rem; }
+
 .empty { color: var(--text-dim); font-style: italic; font-size: 0.95rem; padding: 0.5rem 0; }
+
 .member-list { list-style: none; }
 .member-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .member-list li:last-child { border-bottom: none; }
-p label { display: block; font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.12em; color: var(--text-dim); margin-bottom: 0.4rem; }
+
+/* ── FORMS ── */
+p label {
+  display: block;
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
 p { margin-bottom: 1.1rem; }
-p input[type="text"], p input[type="password"], p input[type="date"], p input[type="email"], p select, p textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.65rem 0.85rem; font-family: 'Crimson Text', serif; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+
+p input[type="text"],
+p input[type="password"],
+p input[type="date"],
+p input[type="email"],
+p select,
+p textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.65rem 0.85rem;
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
 p input:focus, p select:focus { border-color: var(--gold-dim); }
 p select option { background: var(--surface2); }
+
 span.helptext { display: block; color: var(--text-dim); font-size: 0.8rem; font-style: italic; margin-top: 0.3rem; line-height: 1.4; }
 ul.errorlist { list-style: none; margin-top: 0.3rem; }
 ul.errorlist li { color: var(--error); font-size: 0.85rem; font-style: italic; }
-.btn { background: transparent; border: 1px solid var(--gold-dim); color: var(--gold); padding: 0.65rem 1.4rem; font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.12em; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-block; }
+
+/* ── BUTTONS ── */
+.btn {
+  background: transparent;
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  padding: 0.65rem 1.4rem;
+  font-family: 'Cinzel', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
 .btn:hover { background: rgba(201,168,76,0.08); border-color: var(--gold); }
 .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.7rem; }
+
+/* ── GRID ── */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } nav { flex-wrap: wrap; } }
+
+/* ── MOBILE ── */
+@media (max-width: 640px) {
+  .main { padding: 1.25rem 0.85rem; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .card { padding: 1.1rem 0.9rem; }
+  .page-header { margin-bottom: 1.25rem; padding-bottom: 1rem; }
+  .detail-label { min-width: 100px; }
+}
 </style>
 </head>
 <body>
 <nav>
-<a href="{% url 'home' %}" class="nav-brand">LINK ROOT</a>
-{% if user.is_authenticated %}
-<a href="{% url 'profile' %}" {% if request.resolver_match.url_name == 'profile' %}class="active"{% endif %}>Profile</a>
-<a href="{% url 'family_list' %}" {% if request.resolver_match.url_name == 'family_list' %}class="active"{% endif %}>Members</a>
-<a href="{% url 'visual_tree' %}" {% if request.resolver_match.url_name == 'visual_tree' %}class="active"{% endif %}>Family Tree</a>
-<a href="{% url 'logout' %}">Logout</a>
-{% else %}
-<a href="{% url 'login' %}">Login</a>
-<a href="{% url 'register' %}">Register</a>
-{% endif %}
+  <a href="{% url 'home' %}" class="nav-brand">LINK ROOT</a>
+  {% if user.is_authenticated %}
+    <a href="{% url 'profile' %}"     {% if request.resolver_match.url_name == 'profile' %}class="active"{% endif %}>Profile</a>
+    <a href="{% url 'family_list' %}" {% if request.resolver_match.url_name == 'family_list' %}class="active"{% endif %}>Members</a>
+    <a href="{% url 'visual_tree' %}" {% if request.resolver_match.url_name == 'visual_tree' %}class="active"{% endif %}>Family Tree</a>
+    <a href="{% url 'logout' %}">Logout</a>
+  {% else %}
+    <a href="{% url 'login' %}">Login</a>
+    <a href="{% url 'register' %}">Register</a>
+  {% endif %}
 </nav>
 {% block content %}{% endblock %}
 </body>
