@@ -8,20 +8,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
 
 :root {
-  --bg: #0d0d0f;
-  --surface: #16161a;
-  --surface2: #1e1e24;
-  --border: #2a2a35;
-  --gold: #c9a84c;
-  --gold-light: #e8c97a;
-  --gold-dim: #7a6430;
-  --text: #e8e0d0;
-  --text-dim: #8a8070;
-  --male: #1e3550;
-  --male-border: #4a8abf;
-  --female: #3d1e35;
-  --female-border: #bf4a8a;
-  --error: #bf4a4a;
+  --bg:           #f5f0e8;
+  --surface:      #fdfaf4;
+  --surface2:     #ede8de;
+  --border:       #d4c9b0;
+  --gold:         #7a5c20;
+  --gold-light:   #4a3a10;
+  --gold-dim:     #a07838;
+  --text:         #1e1a12;
+  --text-dim:     #7a6848;
+  --male:         #ddeaf8;
+  --male-border:  #3a7abf;
+  --female:       #f8ddf0;
+  --female-border:#bf3a8a;
+  --error:        #bf3a3a;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,8 +38,8 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    radial-gradient(ellipse at 15% 20%, rgba(201,168,76,0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 80%, rgba(201,168,76,0.03) 0%, transparent 50%);
+    radial-gradient(ellipse at 15% 20%, rgba(160,120,56,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 80%, rgba(160,120,56,0.04) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -49,16 +49,17 @@ nav {
   position: relative;
   z-index: 100;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--border);
   padding: 0 1.25rem;
   display: flex;
   align-items: stretch;
-  flex-wrap: nowrap;        /* never wrap — single row always */
-  overflow-x: auto;         /* scroll if too wide on tiny screens */
+  flex-wrap: nowrap;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;    /* hide scrollbar on Firefox */
+  scrollbar-width: none;
+  box-shadow: 0 2px 12px rgba(100,80,30,0.08);
 }
-nav::-webkit-scrollbar { display: none; } /* hide scrollbar on Chrome */
+nav::-webkit-scrollbar { display: none; }
 
 .nav-brand {
   font-family: 'Cinzel', serif;
@@ -136,6 +137,7 @@ nav a:not(.nav-brand) + a:not(.nav-brand)::before {
   padding: 1.75rem;
   margin-bottom: 1.25rem;
   position: relative;
+  box-shadow: 0 2px 10px rgba(100,80,30,0.07);
 }
 .card-title {
   font-family: 'Cinzel', serif;
@@ -143,18 +145,18 @@ nav a:not(.nav-brand) + a:not(.nav-brand)::before {
   color: var(--gold);
   letter-spacing: 0.08em;
   margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
 }
 
 /* ── TABLE ── */
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  /* subtle hint that it scrolls */
-  -ms-overflow-style: -ms-autohiding-scrollbar;
 }
 .data-table {
   width: 100%;
-  min-width: 600px;          /* forces scroll on narrow screens */
+  min-width: 600px;
   border-collapse: collapse;
   font-size: 1rem;
 }
@@ -193,9 +195,9 @@ a.text-link:hover { color: var(--gold-light); }
   letter-spacing: 0.1em;
   border-radius: 2px;
 }
-.badge-male    { background: var(--male);    border: 1px solid var(--male-border);    color: #8ab8df; }
-.badge-female  { background: var(--female);  border: 1px solid var(--female-border);  color: #df8ab8; }
-.badge-married { background: rgba(201,168,76,0.1); border: 1px solid var(--gold-dim); color: var(--gold); }
+.badge-male    { background: var(--male);    border: 1px solid var(--male-border);    color: #1a4a80; }
+.badge-female  { background: var(--female);  border: 1px solid var(--female-border);  color: #80185a; }
+.badge-married { background: rgba(160,120,56,0.12); border: 1px solid var(--gold-dim); color: var(--gold); }
 .badge-single  { background: var(--surface2); border: 1px solid var(--border);        color: var(--text-dim); }
 
 /* ── DETAIL ROWS ── */
@@ -259,9 +261,10 @@ p textarea {
   outline: none;
   transition: border-color 0.2s;
   -webkit-appearance: none;
+  border-radius: 0;
 }
 p input:focus, p select:focus { border-color: var(--gold-dim); }
-p select option { background: var(--surface2); }
+p select option { background: var(--surface2); color: var(--text); }
 
 span.helptext { display: block; color: var(--text-dim); font-size: 0.8rem; font-style: italic; margin-top: 0.3rem; line-height: 1.4; }
 ul.errorlist { list-style: none; margin-top: 0.3rem; }
@@ -281,7 +284,7 @@ ul.errorlist li { color: var(--error); font-size: 0.85rem; font-style: italic; }
   text-decoration: none;
   display: inline-block;
 }
-.btn:hover { background: rgba(201,168,76,0.08); border-color: var(--gold); }
+.btn:hover { background: rgba(160,120,56,0.08); border-color: var(--gold); }
 .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.7rem; }
 
 /* ── GRID ── */
