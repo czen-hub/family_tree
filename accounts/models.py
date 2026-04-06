@@ -12,6 +12,34 @@ GENDER_CHOICES = [
     ('O', 'Other'),
 ]
 
+# Tibetan calendar animals — cycle of 12 starting from 1900 (Dragon year)
+TIBETAN_ANIMALS = [
+    'Iron Rat', 'Iron Ox', 'Iron Tiger', 'Iron Rabbit',   # placeholder, real calc below
+]
+
+TIBETAN_ANIMAL_CYCLE = [
+    'Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake',
+    'Horse', 'Sheep', 'Monkey', 'Rooster', 'Dog', 'Pig',
+]
+
+TIBETAN_ELEMENT_CYCLE = [
+    'Iron', 'Iron', 'Water', 'Water', 'Wood', 'Wood',
+    'Fire', 'Fire', 'Earth', 'Earth', 'Iron', 'Iron',
+]
+
+def get_tibetan_year(year):
+    """Return Tibetan element-animal for a given Gregorian year."""
+    if not year:
+        return ''
+    # Tibetan year offset: 1900 = Iron Rat
+    offset = (year - 1900) % 60
+    animal_index  = offset % 12
+    element_index = offset % 10
+    elements = ['Iron','Iron','Water','Water','Wood','Wood','Fire','Fire','Earth','Earth']
+    animals  = ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Sheep','Monkey','Rooster','Dog','Pig']
+    return f"{elements[element_index]} {animals[animal_index]}"
+
+
 class FamilyMember(models.Model):
     user           = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     first_name     = models.CharField(max_length=100)
@@ -20,6 +48,7 @@ class FamilyMember(models.Model):
     gender         = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True, blank=True)
     marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS, default='Single')
     date_of_birth  = models.DateField(null=True, blank=True)
+    date_of_death  = models.DateField(null=True, blank=True)   # ← new
     address        = models.TextField(blank=True)
     photo          = models.ImageField(upload_to='members/', blank=True, null=True)
 
@@ -43,6 +72,16 @@ class FamilyMember(models.Model):
         on_delete=models.SET_NULL,
         related_name='married_to'
     )
+
+    @property
+    def is_deceased(self):
+        return self.date_of_death is not None
+
+    @property
+    def tibetan_year(self):
+        if self.date_of_birth:
+            return get_tibetan_year(self.date_of_birth.year)
+        return ''
 
     def get_children(self):
         from itertools import chain

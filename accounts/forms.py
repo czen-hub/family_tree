@@ -10,7 +10,7 @@ LAST_NAME_CHOICES = [
     ('Thapa', 'Thapa'),
     ('Thongso', 'Thongso'),
     ('Tamang', 'Tamang'),
-    ('Other','Other'),
+    ('Other', 'Other'),
 ]
 
 COUNTRY_CHOICES = [
@@ -55,6 +55,7 @@ class FamilyMemberForm(forms.ModelForm):
             'gender',
             'marital_status',
             'date_of_birth',
+            'date_of_death',
             'address',
             'phone',
             'facebook',
@@ -66,6 +67,7 @@ class FamilyMemberForm(forms.ModelForm):
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'date_of_death': forms.DateInput(attrs={'type': 'date'}),
             'father':        forms.Select,
             'mother':        forms.Select,
             'spouse':        forms.Select,

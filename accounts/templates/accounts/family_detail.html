@@ -9,22 +9,33 @@
     <div style="display:flex; align-items:center; gap:1.1rem;">
       {% if member.photo %}
         <img src="{{ member.photo.url }}" alt="{{ member.first_name }}"
-          style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #c8860a; flex-shrink:0; display:block;" />
+          style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid {% if member.is_deceased %}#888{% else %}#c8860a{% endif %}; flex-shrink:0; display:block;
+          {% if member.is_deceased %}filter:grayscale(60%);{% endif %}" />
       {% else %}
-        <div style="width:80px; height:80px; border-radius:50%; background:var(--surface2); border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-          <svg width="34" height="34" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.3;">
+        <div style="width:80px; height:80px; border-radius:50%; background:var(--surface2); border:2px solid {% if member.is_deceased %}#aaa{% else %}var(--border){% endif %}; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+          <svg width="34" height="34" viewBox="0 0 36 36" fill="none" style="opacity:0.3;">
             <circle cx="18" cy="14" r="7" stroke="currentColor" stroke-width="1.5"/>
             <path d="M4 32c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </div>
       {% endif %}
+
       <div>
-        <div class="page-title">{{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}</div>
-        <div style="margin-top:0.4rem; display:flex; gap:0.4rem; flex-wrap:wrap;">
+        <div class="page-title" style="{% if member.is_deceased %}color:#5a5040;{% endif %}">
+          {{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}
+          {% if member.is_deceased %}<span style="color:#888; font-size:1rem; margin-left:0.4rem;">†</span>{% endif %}
+        </div>
+        <div style="margin-top:0.4rem; display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center;">
           {% if member.gender == 'M' %}<span class="badge badge-male">Male</span>
           {% elif member.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
           {% if member.marital_status == 'Married' %}<span class="badge badge-married">Married</span>
           {% else %}<span class="badge badge-single">Single</span>{% endif %}
+          {% if member.is_deceased %}
+            <span style="display:inline-block; padding:0.2rem 0.6rem; font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.1em; border-radius:2px; background:#f0ece4; border:1px solid #aaa; color:#666;">† Deceased</span>
+          {% endif %}
+          {% if member.tibetan_year %}
+            <span style="display:inline-block; padding:0.2rem 0.6rem; font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; border-radius:2px; background:rgba(139,26,0,0.07); border:1px solid var(--gold-dim); color:var(--gold-dim);">{{ member.tibetan_year }}</span>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -41,38 +52,69 @@
     <!-- Personal Details — rug border -->
     <div class="card-rug">
       <div class="card-title">Personal Details</div>
-      <div class="detail-row"><span class="detail-label">Date of Birth</span><span class="detail-value">{{ member.date_of_birth|default:"—" }}</span></div>
-      <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value">{{ member.address|default:"—" }}</span></div>
+
+      <div class="detail-row">
+        <span class="detail-label">Date of Birth</span>
+        <span class="detail-value">{{ member.date_of_birth|default:"—" }}</span>
+      </div>
+
+      {% if member.tibetan_year %}
+      <div class="detail-row">
+        <span class="detail-label">Tibetan Year</span>
+        <span class="detail-value">{{ member.tibetan_year }}</span>
+      </div>
+      {% endif %}
+
+      {% if member.is_deceased %}
+      <div class="detail-row">
+        <span class="detail-label">Date of Death</span>
+        <span class="detail-value" style="color:#888;">{{ member.date_of_death }}</span>
+      </div>
+      {% endif %}
+
+      <div class="detail-row">
+        <span class="detail-label">Location</span>
+        <span class="detail-value">{{ member.address|default:"—" }}</span>
+      </div>
+
       {% if member.spouse %}
       <div class="detail-row">
         <span class="detail-label">Spouse</span>
         <span class="detail-value"><a href="{% url 'family_detail' member.spouse.pk %}" class="text-link">{{ member.spouse }}</a></span>
       </div>
       {% endif %}
+
       {% if member.phone %}
       <div class="detail-row">
         <span class="detail-label">Phone</span>
-        <span class="detail-value">
+        <span class="detail-value" style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
           <a href="tel:{{ member.phone }}" class="text-link">{{ member.phone }}</a>
+          <a href="https://wa.me/{{ member.phone|cut:'+' }}" target="_blank" rel="noopener"
+            style="display:inline-flex; align-items:center; gap:0.25rem; color:#25a244; font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.06em; text-decoration:none; border:1px solid #25a244; padding:0.1rem 0.45rem; border-radius:2px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            WhatsApp
+          </a>
         </span>
       </div>
       {% endif %}
+
       {% if member.facebook %}
       <div class="detail-row">
         <span class="detail-label">Facebook</span>
         <span class="detail-value">
-          <a href="{{ member.facebook }}" target="_blank" rel="noopener" class="text-link" style="display:flex; align-items:center; gap:0.35rem;">
+          <a href="{{ member.facebook }}" target="_blank" rel="noopener" class="text-link" style="display:inline-flex; align-items:center; gap:0.35rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
             {{ member.facebook }}
           </a>
         </span>
       </div>
       {% endif %}
+
       {% if member.instagram %}
       <div class="detail-row">
         <span class="detail-label">Instagram</span>
         <span class="detail-value">
-          <a href="https://instagram.com/{{ member.instagram }}" target="_blank" rel="noopener" class="text-link" style="display:flex; align-items:center; gap:0.35rem;">
+          <a href="https://instagram.com/{{ member.instagram }}" target="_blank" rel="noopener" class="text-link" style="display:inline-flex; align-items:center; gap:0.35rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
             @{{ member.instagram }}
           </a>
@@ -84,28 +126,70 @@
     <!-- Parents — rug border -->
     <div class="card-rug">
       <div class="card-title">Parents</div>
+
       <div class="detail-row">
         <span class="detail-label">Father</span>
         <span class="detail-value">
-          {% if member.father %}<a href="{% url 'family_detail' member.father.pk %}" class="text-link">{{ member.father }}</a>{% else %}—{% endif %}
+          {% if member.father %}
+            <a href="{% url 'family_detail' member.father.pk %}" class="text-link">
+              {{ member.father }}{% if member.father.is_deceased %} †{% endif %}
+            </a>
+          {% else %}—{% endif %}
         </span>
       </div>
+
       <div class="detail-row">
         <span class="detail-label">Mother</span>
         <span class="detail-value">
-          {% if member.mother %}<a href="{% url 'family_detail' member.mother.pk %}" class="text-link">{{ member.mother }}</a>{% else %}—{% endif %}
+          {% if member.mother %}
+            <a href="{% url 'family_detail' member.mother.pk %}" class="text-link">
+              {{ member.mother }}{% if member.mother.is_deceased %} †{% endif %}
+            </a>
+          {% else %}—{% endif %}
         </span>
       </div>
+
       <div class="detail-row">
         <span class="detail-label">Pat. Grandfather</span>
         <span class="detail-value">
-          {% if member.father.father %}<a href="{% url 'family_detail' member.father.father.pk %}" class="text-link">{{ member.father.father }}</a>{% else %}—{% endif %}
+          {% if member.father.father %}
+            <a href="{% url 'family_detail' member.father.father.pk %}" class="text-link">
+              {{ member.father.father }}{% if member.father.father.is_deceased %} †{% endif %}
+            </a>
+          {% else %}—{% endif %}
         </span>
       </div>
+
       <div class="detail-row">
         <span class="detail-label">Pat. Grandmother</span>
         <span class="detail-value">
-          {% if member.father.mother %}<a href="{% url 'family_detail' member.father.mother.pk %}" class="text-link">{{ member.father.mother }}</a>{% else %}—{% endif %}
+          {% if member.father.mother %}
+            <a href="{% url 'family_detail' member.father.mother.pk %}" class="text-link">
+              {{ member.father.mother }}{% if member.father.mother.is_deceased %} †{% endif %}
+            </a>
+          {% else %}—{% endif %}
+        </span>
+      </div>
+
+      <div class="detail-row">
+        <span class="detail-label">Mat. Grandfather</span>
+        <span class="detail-value">
+          {% if member.mother.father %}
+            <a href="{% url 'family_detail' member.mother.father.pk %}" class="text-link">
+              {{ member.mother.father }}{% if member.mother.father.is_deceased %} †{% endif %}
+            </a>
+          {% else %}—{% endif %}
+        </span>
+      </div>
+
+      <div class="detail-row">
+        <span class="detail-label">Mat. Grandmother</span>
+        <span class="detail-value">
+          {% if member.mother.mother %}
+            <a href="{% url 'family_detail' member.mother.mother.pk %}" class="text-link">
+              {{ member.mother.mother }}{% if member.mother.mother.is_deceased %} †{% endif %}
+            </a>
+          {% else %}—{% endif %}
         </span>
       </div>
     </div>
@@ -120,6 +204,7 @@
       <li>
         <a href="{% url 'family_detail' sibling.pk %}" class="text-link">
           {{ sibling.first_name }} {{ sibling.middle_name }} {{ sibling.last_name }}
+          {% if sibling.is_deceased %}†{% endif %}
         </a>
         {% if sibling.gender == 'M' %}<span class="badge badge-male">Male</span>
         {% elif sibling.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
@@ -138,6 +223,7 @@
       <li>
         <a href="{% url 'family_detail' child.pk %}" class="text-link">
           {{ child.first_name }} {{ child.middle_name }} {{ child.last_name }}
+          {% if child.is_deceased %}†{% endif %}
         </a>
         {% if child.gender == 'M' %}<span class="badge badge-male">Male</span>
         {% elif child.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
@@ -156,6 +242,7 @@
       <li>
         <a href="{% url 'family_detail' gc.pk %}" class="text-link">
           {{ gc.first_name }} {{ gc.middle_name }} {{ gc.last_name }}
+          {% if gc.is_deceased %}†{% endif %}
         </a>
         {% if gc.gender == 'M' %}<span class="badge badge-male">Male</span>
         {% elif gc.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
@@ -174,6 +261,7 @@
       <li>
         <a href="{% url 'family_detail' nn.pk %}" class="text-link">
           {{ nn.first_name }} {{ nn.middle_name }} {{ nn.last_name }}
+          {% if nn.is_deceased %}†{% endif %}
         </a>
         {% if nn.gender == 'M' %}<span class="badge badge-male">Male</span>
         {% elif nn.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
@@ -192,6 +280,7 @@
       <li>
         <a href="{% url 'family_detail' cousin.pk %}" class="text-link">
           {{ cousin.first_name }} {{ cousin.middle_name }} {{ cousin.last_name }}
+          {% if cousin.is_deceased %}†{% endif %}
         </a>
         {% if cousin.gender == 'M' %}<span class="badge badge-male">Male</span>
         {% elif cousin.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
