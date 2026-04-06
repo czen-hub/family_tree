@@ -4,19 +4,41 @@
 <div class="main">
 
   <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.75rem;">
-    <div>
-      <div class="page-title">{{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}</div>
-      <div style="margin-top:0.4rem; display:flex; gap:0.4rem; flex-wrap:wrap;">
-        {% if member.gender == 'M' %}<span class="badge badge-male">Male</span>
-        {% elif member.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
-        {% if member.marital_status == 'Married' %}<span class="badge badge-married">Married</span>
-        {% else %}<span class="badge badge-single">Single</span>{% endif %}
+
+    <!-- Left: photo + name + badges -->
+    <div style="display:flex; align-items:center; gap:1.1rem;">
+
+      <!-- Circular photo -->
+      {% if member.photo %}
+        <img src="{{ member.photo.url }}" alt="{{ member.first_name }}"
+          style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #7a6430; flex-shrink:0; display:block;" />
+      {% else %}
+        <div style="width:80px; height:80px; border-radius:50%; background:var(--surface2); border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+          <svg width="34" height="34" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.3;">
+            <circle cx="18" cy="14" r="7" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M4 32c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      {% endif %}
+
+      <!-- Name + badges -->
+      <div>
+        <div class="page-title">{{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}</div>
+        <div style="margin-top:0.4rem; display:flex; gap:0.4rem; flex-wrap:wrap;">
+          {% if member.gender == 'M' %}<span class="badge badge-male">Male</span>
+          {% elif member.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
+          {% if member.marital_status == 'Married' %}<span class="badge badge-married">Married</span>
+          {% else %}<span class="badge badge-single">Single</span>{% endif %}
+        </div>
       </div>
     </div>
+
+    <!-- Right: action buttons -->
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
       <a href="{% url 'edit_member' member.pk %}" class="btn btn-sm">Edit</a>
       <a href="{% url 'visual_tree' %}" class="btn btn-sm">View Tree</a>
     </div>
+
   </div>
 
   <div class="grid-2">
