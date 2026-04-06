@@ -89,7 +89,7 @@ def family_detail(request, pk):
 @login_required
 def add_member(request):
     if request.method == 'POST':
-        form = FamilyMemberForm(request.POST)
+        form = FamilyMemberForm(request.POST, request.FILES)  # ← request.FILES added
         if form.is_valid():
             member = form.save(commit=False)
             member.user = request.user
@@ -103,7 +103,7 @@ def add_member(request):
 @login_required
 def family_tree_json(request):
     member_id = request.GET.get('id')
-    
+
     def build_descendants(member, visited=None):
         if visited is None:
             visited = set()
@@ -119,6 +119,7 @@ def family_tree_json(request):
             'dob': str(member.date_of_birth) if member.date_of_birth else '',
             'spouse_id': member.spouse.pk if member.spouse else None,
             'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
+            'photo': member.photo.url if member.photo else '',
             'children': [
                 node for node in (build_descendants(c, visited) for c in children)
                 if node is not None
@@ -128,17 +129,17 @@ def family_tree_json(request):
     def build_ancestors(member, depth=0):
         if depth > 4:
             return None
-        node = {
+        return {
             'id': member.pk,
             'name': str(member),
             'gender': member.gender,
             'dob': str(member.date_of_birth) if member.date_of_birth else '',
             'spouse_id': member.spouse.pk if member.spouse else None,
             'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
+            'photo': member.photo.url if member.photo else '',
             'father': build_ancestors(member.father, depth + 1) if member.father else None,
             'mother': build_ancestors(member.mother, depth + 1) if member.mother else None,
         }
-        return node
 
     if member_id:
         try:
@@ -153,26 +154,33 @@ def family_tree_json(request):
             return JsonResponse({'tree': None, 'ancestors': None})
 
     return JsonResponse({
-    'focused_id': member.pk,
-    'focused_name': str(member),
-    'tree': build_descendants(member),
-    'ancestors': build_ancestors(member),
-    'all_members': [
-        {'id': m.pk, 'name': str(m), 'gender': m.gender, 'last_name': m.last_name}
-        for m in FamilyMember.objects.all()
-    ]
-})
+        'focused_id': member.pk,
+        'focused_name': str(member),
+        'tree': build_descendants(member),
+        'ancestors': build_ancestors(member),
+        'all_members': [
+            {
+                'id': m.pk,
+                'name': str(m),
+                'gender': m.gender,
+                'last_name': m.last_name,
+                'photo': m.photo.url if m.photo else '',
+            }
+            for m in FamilyMember.objects.all()
+        ]
+    })
 
 
 @login_required
 def visual_tree(request):
     return render(request, 'accounts/visual_tree.html')
 
+
 @login_required
 def edit_member(request, pk):
     member = get_object_or_404(FamilyMember, pk=pk)
     if request.method == 'POST':
-        form = FamilyMemberForm(request.POST, instance=member)
+        form = FamilyMemberForm(request.POST, request.FILES, instance=member)  # ← request.FILES added
         if form.is_valid():
             form.save()
             return redirect('family_detail', pk=pk)

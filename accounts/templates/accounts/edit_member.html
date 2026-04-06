@@ -9,9 +9,69 @@
   </div>
 
   <div class="card">
-    <form method="POST" id="member-form">
+    <form method="POST" enctype="multipart/form-data" id="member-form">
       {% csrf_token %}
+
+      <!-- Photo Upload Section -->
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block; font-family:'Cinzel',serif; font-size:0.8rem; letter-spacing:0.08em; color:var(--text-dim); margin-bottom:0.75rem;">
+          PROFILE PHOTO
+        </label>
+
+        <div style="display:flex; align-items:center; gap:1.25rem; margin-bottom:0.75rem;">
+          <div id="photo-preview-wrap" style="width:90px; height:90px; border-radius:50%; border:2px solid var(--border); overflow:hidden; background:var(--surface2); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+
+            {% if member.photo %}
+              <!-- Show existing photo -->
+              <img id="photo-preview" src="{{ member.photo.url }}" alt="Preview"
+                style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />
+              <svg id="photo-placeholder" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.35; display:none;">
+                <circle cx="18" cy="14" r="7" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M4 32c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            {% else %}
+              <!-- No photo yet -->
+              <svg id="photo-placeholder" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.35;">
+                <circle cx="18" cy="14" r="7" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M4 32c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <img id="photo-preview" src="" alt="Preview"
+                style="width:100%; height:100%; object-fit:cover; display:none; border-radius:50%;" />
+            {% endif %}
+
+          </div>
+
+          <div style="flex:1;">
+            <label for="id_photo" id="photo-label"
+              style="display:inline-block; cursor:pointer; padding:0.5rem 1rem; border:1px solid var(--border); font-family:'Cinzel',serif; font-size:0.78rem; letter-spacing:0.06em; color:var(--text-dim); transition:border-color 0.2s, color 0.2s;">
+              {% if member.photo %}CHANGE PHOTO{% else %}CHOOSE PHOTO{% endif %}
+            </label>
+            <input type="file" name="photo" id="id_photo" accept="image/*"
+              style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;" />
+            <div id="photo-filename" style="margin-top:0.4rem; font-size:0.82rem; color:var(--text-dim); font-style:italic;">
+              {% if member.photo %}Current photo saved{% else %}No file chosen{% endif %}
+            </div>
+            <div style="margin-top:0.35rem; font-size:0.78rem; color:var(--text-dim); opacity:0.6;">
+              JPG or PNG · Square recommended · Max 2 MB
+            </div>
+          </div>
+        </div>
+
+        <!-- Remove photo button -->
+        <button type="button" id="remove-photo"
+          style="display:{% if member.photo %}inline-block{% else %}none{% endif %}; background:none; border:none; font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.06em; color:#c0392b; cursor:pointer; padding:0; margin-top:0.25rem;">
+          ✕ REMOVE PHOTO
+        </button>
+
+        <!-- Hidden checkbox to signal photo removal to Django -->
+        <input type="checkbox" name="photo-clear" id="photo-clear" style="display:none;" />
+      </div>
+
+      <hr style="border:none; border-top:1px solid var(--border); margin-bottom:1.25rem;" />
+
+      <!-- Rest of the form fields -->
       {{ form.as_p }}
+
       <div style="margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border); display:flex; gap:0.75rem; flex-wrap:wrap;">
         <button type="submit" class="btn">Save Changes</button>
         <a href="{% url 'family_detail' member.pk %}" class="btn" style="border-color:var(--border); color:var(--text-dim);">Cancel</a>
@@ -21,12 +81,82 @@
 
 </div>
 
+<style>
+  #photo-label:hover {
+    border-color: var(--text-dim);
+    color: var(--text);
+  }
+  #photo-preview-wrap {
+    transition: border-color 0.2s;
+  }
+  #photo-preview-wrap.has-photo {
+    border-color: #7a6430;
+  }
+</style>
+
 <script>
-const fatherSelect = document.getElementById('id_father');
-const motherSelect = document.getElementById('id_mother');
+/* ── Photo upload preview ── */
+const photoInput    = document.getElementById('id_photo');
+const photoPreview  = document.getElementById('photo-preview');
+const photoPH       = document.getElementById('photo-placeholder');
+const photoWrap     = document.getElementById('photo-preview-wrap');
+const photoFilename = document.getElementById('photo-filename');
+const removeBtn     = document.getElementById('remove-photo');
+const photoClear    = document.getElementById('photo-clear');
+const photoLabel    = document.getElementById('photo-label');
+const MAX_MB        = 2;
+
+/* Mark wrap if member already has a photo */
+{% if member.photo %}
+photoWrap.classList.add('has-photo');
+{% endif %}
+
+photoInput.addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  if (file.size > MAX_MB * 1024 * 1024) {
+    photoFilename.textContent = '⚠ File too large (max 2 MB)';
+    photoFilename.style.color = '#c0392b';
+    this.value = '';
+    return;
+  }
+
+  photoFilename.style.color = '';
+  photoFilename.textContent = file.name;
+  photoClear.checked = false;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoPreview.src            = e.target.result;
+    photoPreview.style.display  = 'block';
+    photoPH.style.display       = 'none';
+    photoWrap.classList.add('has-photo');
+    removeBtn.style.display     = 'inline-block';
+    photoLabel.textContent      = 'CHANGE PHOTO';
+  };
+  reader.readAsDataURL(file);
+});
+
+removeBtn.addEventListener('click', function () {
+  photoInput.value            = '';
+  photoPreview.src            = '';
+  photoPreview.style.display  = 'none';
+  photoPH.style.display       = 'block';
+  photoWrap.classList.remove('has-photo');
+  photoFilename.textContent   = 'No file chosen';
+  photoFilename.style.color   = '';
+  removeBtn.style.display     = 'none';
+  photoLabel.textContent      = 'CHOOSE PHOTO';
+  photoClear.checked          = true;  /* tells Django to clear the existing photo */
+});
+
+/* ── Father / Mother filters ── */
+const fatherSelect   = document.getElementById('id_father');
+const motherSelect   = document.getElementById('id_mother');
 const lastNameSelect = document.getElementById('id_last_name');
-const fatherOptions = Array.from(fatherSelect.options);
-const motherOptions = Array.from(motherSelect.options);
+const fatherOptions  = Array.from(fatherSelect.options);
+const motherOptions  = Array.from(motherSelect.options);
 
 const LAST_NAMES = [
   ['','-- Filter by Last Name --'],
@@ -36,7 +166,7 @@ const LAST_NAMES = [
 ];
 
 function insertFilterDropdown(beforeElement, label, id) {
-  const p = document.createElement('p');
+  const p   = document.createElement('p');
   const lbl = document.createElement('label');
   lbl.textContent = label;
   lbl.setAttribute('for', id);
@@ -54,8 +184,8 @@ function insertFilterDropdown(beforeElement, label, id) {
   return sel;
 }
 
-const fatherP = fatherSelect.closest('p');
-const motherP = motherSelect.closest('p');
+const fatherP      = fatherSelect.closest('p');
+const motherP      = motherSelect.closest('p');
 const fatherFilter = insertFilterDropdown(fatherP, 'Filter Father by Last Name:', 'filter_father_lastname');
 const motherFilter = insertFilterDropdown(motherP, 'Filter Mother by Last Name:', 'filter_mother_lastname');
 
@@ -64,9 +194,8 @@ function filterSelect(select, allOptions, lastName, gender) {
   select.innerHTML = '';
   allOptions.forEach(opt => {
     if (opt.value === '') { select.appendChild(opt.cloneNode(true)); return; }
-    const text = opt.text.toLowerCase();
-    const matchesLastName = !lastName || text.includes(lastName.toLowerCase());
-    const matchesGender = !gender || opt.dataset.gender === gender;
+    const matchesLastName = !lastName || opt.dataset.lastname === lastName;
+    const matchesGender   = !gender   || opt.dataset.gender   === gender;
     if (matchesLastName && matchesGender) select.appendChild(opt.cloneNode(true));
   });
   select.value = current;
@@ -74,17 +203,25 @@ function filterSelect(select, allOptions, lastName, gender) {
 
 async function tagOptionsWithGender() {
   try {
-    const res = await fetch("{% url 'family_tree_json' %}");
+    const res  = await fetch("{% url 'family_tree_json' %}");
     const data = await res.json();
     if (!data.all_members) return;
-    const genderMap = {};
-    data.all_members.forEach(m => { genderMap[m.id] = m.gender; });
+    const genderMap = {}, lastNameMap = {};
+    data.all_members.forEach(m => {
+      genderMap[String(m.id)]   = m.gender;
+      lastNameMap[String(m.id)] = m.last_name;
+    });
     [fatherOptions, motherOptions].forEach(opts => {
-      opts.forEach(opt => { if (opt.value) opt.dataset.gender = genderMap[opt.value] || ''; });
+      opts.forEach(opt => {
+        if (opt.value) {
+          opt.dataset.gender   = genderMap[opt.value]   || '';
+          opt.dataset.lastname = lastNameMap[opt.value] || '';
+        }
+      });
     });
     filterSelect(fatherSelect, fatherOptions, '', 'M');
     filterSelect(motherSelect, motherOptions, '', 'F');
-  } catch(e) {}
+  } catch(e) { console.error('Tag error:', e); }
 }
 
 fatherFilter.addEventListener('change', () => filterSelect(fatherSelect, fatherOptions, fatherFilter.value, 'M'));

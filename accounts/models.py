@@ -13,16 +13,16 @@ GENDER_CHOICES = [
 ]
 
 class FamilyMember(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    first_name = models.CharField(max_length=100)
-    middle_name = models.CharField(max_length=100, blank=True)
-    last_name = models.CharField(max_length=100)
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True, blank=True)
+    user           = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    first_name     = models.CharField(max_length=100)
+    middle_name    = models.CharField(max_length=100, blank=True)
+    last_name      = models.CharField(max_length=100)
+    gender         = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True, blank=True)
     marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS, default='Single')
-    date_of_birth = models.DateField(null=True, blank=True)
-    address = models.TextField(blank=True)
+    date_of_birth  = models.DateField(null=True, blank=True)
+    address        = models.TextField(blank=True)
+    photo          = models.ImageField(upload_to='members/', blank=True, null=True)  # ← added
 
-    # ✅ Real links to other FamilyMember records
     father = models.ForeignKey(
         'self', null=True, blank=True,
         on_delete=models.SET_NULL,
@@ -50,31 +50,3 @@ class FamilyMember(models.Model):
         if self.middle_name:
             return f"{self.first_name} {self.middle_name} {self.last_name[0]}."
         return f"{self.first_name} {self.last_name[0]}."
-
-
-
-"""
-
-MARITAL_STATUS = [
-    ('Single', 'Single'),
-    ('Married', 'Married'),
-]
-
-class FamilyMember(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    first_name = models.CharField(max_length=100)
-    middle_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS, default='Single')
-    spouse_name = models.CharField(max_length=100, blank=True)
-    date_of_birth = models.DateField()
-    address = models.TextField()
-    father_name = models.CharField(max_length=100)
-    mother_name = models.CharField(max_length=100)
-    grandfather_name = models.CharField(max_length=100)
-    grandmother_name = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f"{self.first_name} {self.last_name}" 
-    
-    """

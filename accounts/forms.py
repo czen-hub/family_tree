@@ -41,13 +41,13 @@ GENDER_CHOICES = [
 ]
 
 class FamilyMemberForm(forms.ModelForm):
-    last_name = forms.ChoiceField(choices=LAST_NAME_CHOICES, widget=forms.Select)
+    last_name      = forms.ChoiceField(choices=LAST_NAME_CHOICES,      widget=forms.Select)
     marital_status = forms.ChoiceField(choices=MARITAL_STATUS_CHOICES, widget=forms.Select)
-    address = forms.ChoiceField(choices=COUNTRY_CHOICES, widget=forms.Select)
-    gender = forms.ChoiceField(choices=GENDER_CHOICES, widget=forms.Select)
+    address        = forms.ChoiceField(choices=COUNTRY_CHOICES,        widget=forms.Select)
+    gender         = forms.ChoiceField(choices=GENDER_CHOICES,         widget=forms.Select)
 
     class Meta:
-        model = FamilyMember
+        model  = FamilyMember
         fields = [
             'first_name',
             'middle_name',
@@ -59,10 +59,12 @@ class FamilyMemberForm(forms.ModelForm):
             'father',
             'mother',
             'spouse',
+            'photo',        # ← added
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'father': forms.Select,
             'mother': forms.Select,
             'spouse': forms.Select,
+            'photo':  forms.FileInput(attrs={'style': 'display:none'}),  # hidden — template handles UI
         }
