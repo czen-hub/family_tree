@@ -56,15 +56,18 @@ class FamilyMemberForm(forms.ModelForm):
             'marital_status',
             'date_of_birth',
             'address',
+            'phone',
+            'facebook',
+            'instagram',
             'father',
             'mother',
             'spouse',
-            'photo',        # ← added
+            'photo',
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
-            'father': forms.Select,
-            'mother': forms.Select,
-            'spouse': forms.Select,
-            'photo':  forms.FileInput(attrs={'style': 'display:none'}),  # hidden — template handles UI
+            'father':        forms.Select,
+            'mother':        forms.Select,
+            'spouse':        forms.Select,
+            'photo':         forms.FileInput(attrs={'style': 'display:none'}),
         }

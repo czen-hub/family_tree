@@ -21,7 +21,12 @@ class FamilyMember(models.Model):
     marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS, default='Single')
     date_of_birth  = models.DateField(null=True, blank=True)
     address        = models.TextField(blank=True)
-    photo          = models.ImageField(upload_to='members/', blank=True, null=True)  # ← added
+    photo          = models.ImageField(upload_to='members/', blank=True, null=True)
+
+    # Contact & social
+    phone          = models.CharField(max_length=30, blank=True)
+    facebook       = models.CharField(max_length=200, blank=True)
+    instagram      = models.CharField(max_length=200, blank=True)
 
     father = models.ForeignKey(
         'self', null=True, blank=True,
