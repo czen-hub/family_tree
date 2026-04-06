@@ -9,7 +9,7 @@
     <div style="display:flex; align-items:center; gap:1.1rem;">
       {% if member.photo %}
         <img src="{{ member.photo.url }}" alt="{{ member.first_name }}"
-          style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #7a6430; flex-shrink:0; display:block;" />
+          style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #c8860a; flex-shrink:0; display:block;" />
       {% else %}
         <div style="width:80px; height:80px; border-radius:50%; background:var(--surface2); border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
           <svg width="34" height="34" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.3;">
@@ -37,7 +37,9 @@
   </div>
 
   <div class="grid-2">
-    <div class="card">
+
+    <!-- Personal Details — rug border -->
+    <div class="card-rug">
       <div class="card-title">Personal Details</div>
       <div class="detail-row"><span class="detail-label">Date of Birth</span><span class="detail-value">{{ member.date_of_birth|default:"—" }}</span></div>
       <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value">{{ member.address|default:"—" }}</span></div>
@@ -50,7 +52,8 @@
       {% endif %}
     </div>
 
-    <div class="card">
+    <!-- Parents — rug border -->
+    <div class="card-rug">
       <div class="card-title">Parents</div>
       <div class="detail-row">
         <span class="detail-label">Father</span>
