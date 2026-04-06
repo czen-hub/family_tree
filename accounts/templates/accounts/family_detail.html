@@ -7,8 +7,6 @@
 
     <!-- Left: photo + name + badges -->
     <div style="display:flex; align-items:center; gap:1.1rem;">
-
-      <!-- Circular photo -->
       {% if member.photo %}
         <img src="{{ member.photo.url }}" alt="{{ member.first_name }}"
           style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #7a6430; flex-shrink:0; display:block;" />
@@ -20,8 +18,6 @@
           </svg>
         </div>
       {% endif %}
-
-      <!-- Name + badges -->
       <div>
         <div class="page-title">{{ member.first_name }} {{ member.middle_name }} {{ member.last_name }}</div>
         <div style="margin-top:0.4rem; display:flex; gap:0.4rem; flex-wrap:wrap;">
@@ -38,7 +34,6 @@
       <a href="{% url 'edit_member' member.pk %}" class="btn btn-sm">Edit</a>
       <a href="{% url 'visual_tree' %}" class="btn btn-sm">View Tree</a>
     </div>
-
   </div>
 
   <div class="grid-2">
@@ -84,6 +79,7 @@
     </div>
   </div>
 
+  <!-- Siblings -->
   <div class="section">
     <div class="section-title">Siblings</div>
     {% if siblings %}
@@ -101,6 +97,7 @@
     {% else %}<p class="empty">No siblings found.</p>{% endif %}
   </div>
 
+  <!-- Children -->
   <div class="section">
     <div class="section-title">Children</div>
     {% if children %}
@@ -118,19 +115,58 @@
     {% else %}<p class="empty">No children found.</p>{% endif %}
   </div>
 
+  <!-- Grandchildren -->
   <div class="section">
-    <div class="section-title">Extended Family</div>
-    {% if relatives %}
+    <div class="section-title">Grandchildren</div>
+    {% if grandchildren %}
     <ul class="member-list">
-      {% for relative in relatives %}
+      {% for gc in grandchildren %}
       <li>
-        <a href="{% url 'family_detail' relative.pk %}" class="text-link">
-          {{ relative.first_name }} {{ relative.middle_name }} {{ relative.last_name }}
+        <a href="{% url 'family_detail' gc.pk %}" class="text-link">
+          {{ gc.first_name }} {{ gc.middle_name }} {{ gc.last_name }}
         </a>
+        {% if gc.gender == 'M' %}<span class="badge badge-male">Male</span>
+        {% elif gc.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
       </li>
       {% endfor %}
     </ul>
-    {% else %}<p class="empty">No extended relatives found.</p>{% endif %}
+    {% else %}<p class="empty">No grandchildren found.</p>{% endif %}
+  </div>
+
+  <!-- Nieces & Nephews -->
+  <div class="section">
+    <div class="section-title">Nieces &amp; Nephews</div>
+    {% if nieces_nephews %}
+    <ul class="member-list">
+      {% for nn in nieces_nephews %}
+      <li>
+        <a href="{% url 'family_detail' nn.pk %}" class="text-link">
+          {{ nn.first_name }} {{ nn.middle_name }} {{ nn.last_name }}
+        </a>
+        {% if nn.gender == 'M' %}<span class="badge badge-male">Male</span>
+        {% elif nn.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="empty">No nieces or nephews found.</p>{% endif %}
+  </div>
+
+  <!-- Cousins -->
+  <div class="section">
+    <div class="section-title">Cousins</div>
+    {% if cousins %}
+    <ul class="member-list">
+      {% for cousin in cousins %}
+      <li>
+        <a href="{% url 'family_detail' cousin.pk %}" class="text-link">
+          {{ cousin.first_name }} {{ cousin.middle_name }} {{ cousin.last_name }}
+        </a>
+        {% if cousin.gender == 'M' %}<span class="badge badge-male">Male</span>
+        {% elif cousin.gender == 'F' %}<span class="badge badge-female">Female</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="empty">No cousins found.</p>{% endif %}
   </div>
 
 </div>

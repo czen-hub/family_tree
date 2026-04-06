@@ -63,7 +63,7 @@ def family_detail(request, pk):
     member = get_object_or_404(FamilyMember, pk=pk)
     children = member.get_children()
 
-    # Siblings share the same father or mother
+    # Siblings — share the same father or mother, exclude self
     siblings = FamilyMember.objects.none()
     if member.father:
         siblings = siblings | FamilyMember.objects.filter(father=member.father).exclude(pk=pk)
@@ -71,25 +71,67 @@ def family_detail(request, pk):
         siblings = siblings | FamilyMember.objects.filter(mother=member.mother).exclude(pk=pk)
     siblings = siblings.distinct()
 
-    # Relatives share the same grandparent
-    relatives = FamilyMember.objects.none()
-    if member.father and member.father.father:
-        relatives = relatives | FamilyMember.objects.filter(
-            father__father=member.father.father
-        ).exclude(pk=pk)
+    # Cousins — children of parent's siblings (same generation)
+    cousins = FamilyMember.objects.none()
+    parent_siblings = FamilyMember.objects.none()
+    if member.father:
+        if member.father.father:
+            parent_siblings = parent_siblings | FamilyMember.objects.filter(
+                father=member.father.father
+            ).exclude(pk=member.father.pk)
+        if member.father.mother:
+            parent_siblings = parent_siblings | FamilyMember.objects.filter(
+                mother=member.father.mother
+            ).exclude(pk=member.father.pk)
+    if member.mother:
+        if member.mother.father:
+            parent_siblings = parent_siblings | FamilyMember.objects.filter(
+                father=member.mother.father
+            ).exclude(pk=member.mother.pk)
+        if member.mother.mother:
+            parent_siblings = parent_siblings | FamilyMember.objects.filter(
+                mother=member.mother.mother
+            ).exclude(pk=member.mother.pk)
+    parent_siblings = parent_siblings.distinct()
+    for aunt_uncle in parent_siblings:
+        cousins = cousins | FamilyMember.objects.filter(
+            father=aunt_uncle
+        ) | FamilyMember.objects.filter(
+            mother=aunt_uncle
+        )
+    cousins = cousins.distinct().exclude(pk=pk)
+
+    # Nieces and nephews — children of siblings
+    nieces_nephews = FamilyMember.objects.none()
+    for sibling in siblings:
+        nieces_nephews = nieces_nephews | FamilyMember.objects.filter(
+            father=sibling
+        ) | FamilyMember.objects.filter(
+            mother=sibling
+        )
+    nieces_nephews = nieces_nephews.distinct()
+
+    # Grandchildren — children of children
+    grandchildren = FamilyMember.objects.none()
+    for child in children:
+        for grandchild in child.get_children():
+            grandchildren = grandchildren | FamilyMember.objects.filter(pk=grandchild.pk)
+    grandchildren = grandchildren.distinct()
 
     return render(request, 'accounts/family_detail.html', {
         'member': member,
         'siblings': siblings,
         'children': children,
-        'relatives': relatives,
+        'cousins': cousins,
+        'nieces_nephews': nieces_nephews,
+        'grandchildren': grandchildren,
     })
 
 
 @login_required
 def add_member(request):
     if request.method == 'POST':
-        form = FamilyMemberForm(request.POST, request.FILES)  # ← request.FILES added
+        form = FamilyMemberForm(request.POST, request.FILES)
         if form.is_valid():
             member = form.save(commit=False)
             member.user = request.user
@@ -180,7 +222,7 @@ def visual_tree(request):
 def edit_member(request, pk):
     member = get_object_or_404(FamilyMember, pk=pk)
     if request.method == 'POST':
-        form = FamilyMemberForm(request.POST, request.FILES, instance=member)  # ← request.FILES added
+        form = FamilyMemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
             form.save()
             return redirect('family_detail', pk=pk)
