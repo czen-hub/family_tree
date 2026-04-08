@@ -159,14 +159,16 @@ def family_tree_json(request):
             'full_name': f"{member.first_name} {member.middle_name} {member.last_name}".strip(),
             'gender': member.gender,
             'dob': str(member.date_of_birth) if member.date_of_birth else '',
+            'dod': str(member.date_of_death) if member.date_of_death else '',   # ← add this
+            'is_deceased': member.is_deceased,                                   # ← add this
             'spouse_id': member.spouse.pk if member.spouse else None,
             'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
             'photo': member.photo.url if member.photo else '',
             'children': [
                 node for node in (build_descendants(c, visited) for c in children)
                 if node is not None
-            ],
-        }
+        ],
+    }
 
     def build_ancestors(member, depth=0):
         if depth > 4:
@@ -178,6 +180,8 @@ def family_tree_json(request):
             'dob': str(member.date_of_birth) if member.date_of_birth else '',
             'spouse_id': member.spouse.pk if member.spouse else None,
             'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
+            'dod': str(member.date_of_death) if member.date_of_death else '',   # ← add this
+            'is_deceased': member.is_deceased,                                   # ← 
             'photo': member.photo.url if member.photo else '',
             'father': build_ancestors(member.father, depth + 1) if member.father else None,
             'mother': build_ancestors(member.mother, depth + 1) if member.mother else None,

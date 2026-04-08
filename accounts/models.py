@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from datetime import date
 
 MARITAL_STATUS = [
     ('Single', 'Single'),
@@ -85,10 +86,19 @@ class FamilyMember(models.Model):
 
     def get_children(self):
         from itertools import chain
-        return list(chain(
+        children = list(chain(
             self.children_of_father.all(),
             self.children_of_mother.all()
         ))
+        # Remove duplicates (child may appear via both father and mother link)
+        seen = set()
+        unique = []
+        for c in children:
+            if c.pk not in seen:
+                seen.add(c.pk)
+                unique.append(c)
+    # Sort oldest (earliest dob) to youngest — None dates go to the right
+        return sorted(unique, key=lambda c: c.date_of_birth or date.max)
 
     def __str__(self):
         if self.middle_name:

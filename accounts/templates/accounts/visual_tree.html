@@ -13,9 +13,9 @@
   </div>
 </div>
 
-<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de; background-image:url('/media/tree-bg.png'); background-size:cover; background-position:center; background-repeat:no-repeat;">
+<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de; background-image:url('/media/familypic.png'); background-size:auto 100%; background-position:center center; background-repeat:no-repeat;">
   <!-- Semi-transparent overlay so nodes stay readable over the background image -->
-  <div style="position:absolute; inset:0; background:rgba(237,232,222,0.65); z-index:0; pointer-events:none;"></div>
+  <div style="position:absolute; inset:0; background:rgba(237,232,222,0.35); z-index:0; pointer-events:none;"></div>
 
   <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:2;">
     <div style="font-family:'Cinzel',serif; font-size:0.9rem; color:#7a6430; letter-spacing:0.15em; animation:pulse 1.5s ease-in-out infinite;">TRACING LINEAGE…</div>
@@ -200,16 +200,17 @@ function redraw() {
   collectNodes(currentData.tree, 0, 0, 0, allNodes, allLinks, styleLayout);
 
   if (currentData.ancestors) {
-    const VSEP = 160;
-    if (currentData.ancestors.father) {
-      allNodes.push({...currentData.ancestors.father, _x:-VSEP/2, _y:-VSEP, depth:-1, type:'anc'});
-      allLinks.push({x1:0, y1:-NODE_H/2, x2:-VSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
+      const VSEP = 160;
+      const HSEP = NODE_W + 60;  // enough gap so nodes don't overlap
+      if (currentData.ancestors.father) {
+        allNodes.push({...currentData.ancestors.father, _x:-HSEP/2, _y:-VSEP, depth:-1, type:'anc'});
+        allLinks.push({x1:0, y1:-NODE_H/2, x2:-HSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
+      }
+      if (currentData.ancestors.mother) {
+        allNodes.push({...currentData.ancestors.mother, _x:HSEP/2, _y:-VSEP, depth:-1, type:'anc'});
+        allLinks.push({x1:0, y1:-NODE_H/2, x2:HSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
+      }
     }
-    if (currentData.ancestors.mother) {
-      allNodes.push({...currentData.ancestors.mother, _x:VSEP/2, _y:-VSEP, depth:-1, type:'anc'});
-      allLinks.push({x1:0, y1:-NODE_H/2, x2:VSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
-    }
-  }
 
   const seen = new Set();
   const uniqueNodes = allNodes.filter(n => { if(seen.has(n.id)) return false; seen.add(n.id); return true; });
@@ -292,21 +293,22 @@ function redraw() {
 
   /* click: expand/collapse OR navigate to detail page */
   nodeGroups.on('click', function(event, d) {
-    if ((d.children||[]).length > 0) {
-      if      (manualCollapsed.has(d.id))  { manualCollapsed.delete(d.id); manualExpanded.add(d.id); }
-      else if (d.hasHiddenChildren)         { manualExpanded.add(d.id); }
-      else                                  { manualCollapsed.add(d.id); }
-      redraw();
-    } else {
-      window.location.href = '/accounts/family/' + d.id + '/';
-    }
-  });
-
-  /* double-click always navigates */
-  nodeGroups.on('dblclick', function(event, d) {
-    event.stopPropagation();
-    window.location.href = '/accounts/family/' + d.id + '/';
-  });
+      if ((d.children||[]).length > 0) {
+        if      (manualCollapsed.has(d.id))  { manualCollapsed.delete(d.id); manualExpanded.add(d.id); }
+        else if (d.hasHiddenChildren)         { manualExpanded.add(d.id); }
+        else                                  { manualCollapsed.add(d.id); }
+        redraw();
+        // Centre the clicked node after redraw
+        const container = document.getElementById('tree-container');
+        const W = container.clientWidth, H = container.clientHeight;
+        const tx = W/2 - d._x * currentScale;
+        const ty = H/2 - d._y * currentScale;
+        d3.select('#tree-svg').transition().duration(500)
+          .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
+      } else {
+        window.location.href = '/accounts/family/' + d.id + '/';
+      }
+    });
 
   /* tooltip */
   const tooltip = document.getElementById('tooltip');
