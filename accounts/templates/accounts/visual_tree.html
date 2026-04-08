@@ -13,11 +13,14 @@
   </div>
 </div>
 
-<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de;">
-  <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;">
+<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de; background-image:url('/media/tree-bg.png'); background-size:cover; background-position:center; background-repeat:no-repeat;">
+  <!-- Semi-transparent overlay so nodes stay readable over the background image -->
+  <div style="position:absolute; inset:0; background:rgba(237,232,222,0.65); z-index:0; pointer-events:none;"></div>
+
+  <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:2;">
     <div style="font-family:'Cinzel',serif; font-size:0.9rem; color:#7a6430; letter-spacing:0.15em; animation:pulse 1.5s ease-in-out infinite;">TRACING LINEAGE…</div>
   </div>
-  <svg id="tree-svg" style="width:100%; height:100%; cursor:grab;"></svg>
+  <svg id="tree-svg" style="position:relative; z-index:1; width:100%; height:100%; cursor:grab;"></svg>
 </div>
 
 <div id="tooltip" style="position:fixed; background:#16161a; border:1px solid #7a6430; padding:0.75rem 1rem; pointer-events:none; opacity:0; transition:opacity 0.2s; z-index:100; min-width:160px;">
@@ -27,71 +30,61 @@
 
 <style>
   @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
-  .link          { fill:none; stroke:#2a2a35; stroke-width:1.5px; }
-  .ancestor-link { fill:none; stroke:#7a6430; stroke-width:1px; stroke-dasharray:5 3; }
+  .link          { fill:none; stroke:#c8bea8; stroke-width:1.5px; }
+  .ancestor-link { fill:none; stroke:#a88840; stroke-width:1px; stroke-dasharray:5 3; }
   .node-group    { cursor:pointer; }
   .expand-indicator { pointer-events:none; }
-
-  body.theme-light    #tree-container { background:#ede8de; }
-  body.theme-light    .link           { stroke:#c8bea8; }
-  body.theme-light    .ancestor-link  { stroke:#a88840; }
-  body.theme-contrast #tree-container { background:#000; }
-  body.theme-contrast .link           { stroke:#fff; }
-  body.theme-contrast .ancestor-link  { stroke:#aaa; }
-  body.theme-colorful #tree-container { background:#0a0a14; }
+  body.theme-light  #tree-container { background:#ede8de; }
+  body.theme-light  .link           { stroke:#c8bea8; }
+  body.theme-light  .ancestor-link  { stroke:#a88840; }
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-const NODE_W = 200, NODE_H = 82;
-let currentId   = null;
+const NODE_W = 200, NODE_H = 90;  /* slightly taller to fit death line */
+let currentId    = null;
 let zoomBehavior = null;
 let svgEl        = null;
 let currentData  = null;
 let styleLayout  = 'TB';
 let styleNode    = 'rounded';
 let styleLine    = 'elbow';
-let styleTheme   = 'light';
 let currentScale = 0.7;
 let manualExpanded  = new Set();
 let manualCollapsed = new Set();
-
-/* ── zoom-redraw debounce ── */
-let redrawTimer = null;
+let redrawTimer     = null;
 
 const ZOOM_LEVELS = [
-  { minScale: 0.0,  generations: 1 },
-  { minScale: 0.4,  generations: 2 },
-  { minScale: 0.6,  generations: 3 },
-  { minScale: 0.75, generations: 4 },
-  { minScale: 0.9,  generations: 5 },
-  { minScale: 1.1,  generations: 99 },
+  { minScale:0.0,  generations:1 },
+  { minScale:0.4,  generations:2 },
+  { minScale:0.6,  generations:3 },
+  { minScale:0.75, generations:4 },
+  { minScale:0.9,  generations:5 },
+  { minScale:1.1,  generations:99 },
 ];
-
 function getVisibleGenerations(scale) {
-  let gens = 1;
-  for (const lvl of ZOOM_LEVELS) { if (scale >= lvl.minScale) gens = lvl.generations; }
-  return gens;
+  let g = 1;
+  for (const l of ZOOM_LEVELS) { if (scale >= l.minScale) g = l.generations; }
+  return g;
 }
 
-const THEMES = {
-  dark:     { male:'#1e3550',  female:'#3d1e35',  unknown:'#1e1e2a', maleBorder:'#4a8abf',  femaleBorder:'#bf4a8a',  unknownBorder:'#5a5a6a', focusBorder:'#c9a84c', text:'#e8e0d0', subtext:'#8a8070', spouse:'#c9a84c', expand:'#c9a84c' },
-  light:    { male:'#c8ddf0',  female:'#f0c8dd',  unknown:'#e0d8c8', maleBorder:'#4a8abf',  femaleBorder:'#bf4a8a',  unknownBorder:'#a8a090', focusBorder:'#8a6820', text:'#1a1008', subtext:'#6a5030', spouse:'#8a6820', expand:'#8a6820' },
-  contrast: { male:'#003366',  female:'#660033',  unknown:'#333',    maleBorder:'#fff',      femaleBorder:'#fff',     unknownBorder:'#fff',    focusBorder:'#ff0',    text:'#fff',    subtext:'#ccc',    spouse:'#ff0',    expand:'#ff0' },
-  colorful: { male:'#1a4a8a',  female:'#8a1a4a',  unknown:'#2a4a2a', maleBorder:'#4a9aff',  femaleBorder:'#ff4a9a',  unknownBorder:'#4aff4a', focusBorder:'#ffd700', text:'#fff',    subtext:'#ddd',    spouse:'#ffd700', expand:'#ffd700' }
+const T = {
+  male:'#c8ddf0', female:'#f0c8dd', unknown:'#e0d8c8',
+  deceased:'#d8d0c4',
+  maleBorder:'#4a8abf', femaleBorder:'#bf4a8a', unknownBorder:'#a8a090',
+  deceasedBorder:'#888070',
+  focusBorder:'#8a6820', text:'#1a1008', subtext:'#6a5030',
+  spouse:'#8a6820', expand:'#8a6820',
+  deceasedText:'#5a5048', deceasedSub:'#8a8070',
 };
 
 document.body.classList.add('theme-light');
 
-/* ── data loading ── */
 async function loadTree(memberId) {
   document.getElementById('loading').style.display = 'flex';
   manualExpanded.clear();
   manualCollapsed.clear();
-
-  /* reset position flag so the new member gets centred */
   if (zoomBehavior) zoomBehavior._initialized = false;
-
   const url = "{% url 'family_tree_json' %}" + (memberId ? '?id=' + memberId : '');
   try {
     const res  = await fetch(url);
@@ -128,28 +121,19 @@ function updateBreadcrumb(name) {
 function showEmpty() {
   document.getElementById('loading').innerHTML =
     '<div style="text-align:center;">' +
-      '<div style="font-size:2rem;opacity:0.3;margin-bottom:1rem;">🌳</div>' +
-      '<div style="font-family:Cinzel,serif;color:#7a6430;margin-bottom:0.75rem;">No Members Yet</div>' +
-      '<a href="/accounts/add-member/" style="color:#c9a84c;text-decoration:none;font-family:Cinzel,serif;font-size:0.8rem;border:1px solid #7a6430;padding:0.5rem 1.2rem;">Add First Member</a>' +
+    '<div style="font-size:2rem;opacity:0.3;margin-bottom:1rem;">🌳</div>' +
+    '<div style="font-family:Cinzel,serif;color:#7a6430;margin-bottom:0.75rem;">No Members Yet</div>' +
+    '<a href="/accounts/add-member/" style="color:#c9a84c;text-decoration:none;font-family:Cinzel,serif;font-size:0.8rem;border:1px solid #7a6430;padding:0.5rem 1.2rem;">Add First Member</a>' +
     '</div>';
 }
 
-/* ── style helpers ── */
-function getRx()    { return styleNode==='box'?3:styleNode==='rounded'?16:32; }
-function getTheme() { return THEMES[styleTheme]||THEMES.dark; }
+function getRx() { return styleNode==='rounded' ? 16 : styleNode==='box' ? 3 : 32; }
 
 function makePath(x1,y1,x2,y2) {
-  if (styleLine==='straight') return `M${x1},${y1}L${x2},${y2}`;
-  if (styleLine==='curve') {
-    if (styleLayout==='TB') { const m=(y1+y2)/2; return `M${x1},${y1}C${x1},${m},${x2},${m},${x2},${y2}`; }
-    const m=(x1+x2)/2; return `M${x1},${y1}C${m},${y1},${m},${y2},${x2},${y2}`;
-  }
-  /* elbow (default) */
-  if (styleLayout==='TB') { const m=(y1+y2)/2; return `M${x1},${y1}L${x1},${m}L${x2},${m}L${x2},${y2}`; }
-  const m=(x1+x2)/2; return `M${x1},${y1}L${m},${y1}L${m},${y2}L${x2},${y2}`;
+  const m = (y1+y2)/2;
+  return `M${x1},${y1}L${x1},${m}L${x2},${m}L${x2},${y2}`;
 }
 
-/* ── tree layout ── */
 function isExpanded(node, depth) {
   if (manualCollapsed.has(node.id)) return false;
   if (manualExpanded.has(node.id))  return true;
@@ -165,42 +149,30 @@ function subtreeWidth(node, depth) {
 
 function collectNodes(node, main, cross, depth, allNodes, allLinks, layout) {
   if (!node) return;
-  const isTB = layout==='TB';
-  const x = isTB ? cross : (layout==='LR' ? main : -main);
-  const y = isTB ? main  : cross;
+  const x = cross, y = main;
   const hasHiddenChildren = (node.children||[]).length > 0 && !isExpanded(node, depth);
   allNodes.push({...node, _x:x, _y:y, depth, hasHiddenChildren, expanded: isExpanded(node, depth)});
   if (!isExpanded(node, depth)) return;
   const children = node.children || [];
   if (children.length === 0) return;
-
-  const VSEP   = isTB ? 150 : 260;
+  const VSEP   = 160;
   const widths = children.map(c => subtreeWidth(c, depth+1));
   const total  = widths.reduce((a,b)=>a+b,0);
   let offset   = -total/2;
-
   children.forEach((child, i) => {
     const cc = cross + offset + widths[i]/2;
     const cm = main  + VSEP;
-    const cx = isTB ? cc : (layout==='LR' ? cm : -cm);
-    const cy = isTB ? cm : cc;
-    const ex1 = isTB ? x  : (layout==='LR' ? x+NODE_W/2  : x-NODE_W/2);
-    const ey1 = isTB ? y+NODE_H/2 : y;
-    const ex2 = isTB ? cx : (layout==='LR' ? cx-NODE_W/2 : cx+NODE_W/2);
-    const ey2 = isTB ? cy-NODE_H/2 : cy;
-    allLinks.push({x1:ex1,y1:ey1,x2:ex2,y2:ey2,type:'desc'});
+    allLinks.push({x1:x, y1:y+NODE_H/2, x2:cc, y2:cm-NODE_H/2, type:'desc'});
     collectNodes(child, cm, cc, depth+1, allNodes, allLinks, layout);
     offset += widths[i];
   });
 }
 
-/* ── main render ── */
 function redraw() {
   if (!currentData) return;
   const container = document.getElementById('tree-container');
   const W = container.clientWidth, H = container.clientHeight;
 
-  /* preserve current transform across redraws (for generation-change redraws) */
   let savedTransform = null;
   if (zoomBehavior && zoomBehavior._initialized) {
     savedTransform = d3.zoomTransform(document.getElementById('tree-svg'));
@@ -209,56 +181,33 @@ function redraw() {
   d3.select('#tree-svg').selectAll('*').remove();
   const svg = d3.select('#tree-svg');
   svgEl = svg;
-
   const zoomGroup = svg.append('g');
 
-  /* ── SMOOTH ZOOM — no redraw() inside the handler ── */
-  zoomBehavior = d3.zoom().scaleExtent([0.05, 3]).on('zoom', e => {
+  zoomBehavior = d3.zoom().scaleExtent([0.05,3]).on('zoom', e => {
     zoomGroup.attr('transform', e.transform);
-
-    const newScale  = e.transform.k;
-    const prevGens  = getVisibleGenerations(currentScale);
-    const nextGens  = getVisibleGenerations(newScale);
-    currentScale    = newScale;
-
-    /* only redraw when visible generation count changes, with debounce */
+    const newScale = e.transform.k;
+    const prevGens = getVisibleGenerations(currentScale);
+    const nextGens = getVisibleGenerations(newScale);
+    currentScale   = newScale;
     if (prevGens !== nextGens) {
       clearTimeout(redrawTimer);
       redrawTimer = setTimeout(() => redraw(), 180);
     }
   });
-
   svg.call(zoomBehavior);
 
-  const T        = getTheme();
   const allNodes = [], allLinks = [];
   collectNodes(currentData.tree, 0, 0, 0, allNodes, allLinks, styleLayout);
 
   if (currentData.ancestors) {
-    const VSEP = styleLayout==='TB' ? 150 : 260;
+    const VSEP = 160;
     if (currentData.ancestors.father) {
-      allNodes.push({...currentData.ancestors.father,
-        _x: styleLayout==='TB' ? -VSEP/2 : -VSEP,
-        _y: styleLayout==='TB' ? -VSEP   : -VSEP/2,
-        depth: -1, type: 'anc'});
-      allLinks.push({
-        x1: styleLayout==='TB' ? 0 : (styleLayout==='LR' ? -NODE_W/2 :  NODE_W/2),
-        y1: styleLayout==='TB' ? -NODE_H/2 : 0,
-        x2: styleLayout==='TB' ? -VSEP/2 : (styleLayout==='LR' ? -VSEP-NODE_W/2 : -VSEP+NODE_W/2),
-        y2: styleLayout==='TB' ? -VSEP+NODE_H/2 : -VSEP/2,
-        type:'anc'});
+      allNodes.push({...currentData.ancestors.father, _x:-VSEP/2, _y:-VSEP, depth:-1, type:'anc'});
+      allLinks.push({x1:0, y1:-NODE_H/2, x2:-VSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
     }
     if (currentData.ancestors.mother) {
-      allNodes.push({...currentData.ancestors.mother,
-        _x: styleLayout==='TB' ? VSEP/2 : VSEP,
-        _y: styleLayout==='TB' ? -VSEP  : VSEP/2,
-        depth: -1, type: 'anc'});
-      allLinks.push({
-        x1: styleLayout==='TB' ? 0 : (styleLayout==='LR' ? -NODE_W/2 :  NODE_W/2),
-        y1: styleLayout==='TB' ? -NODE_H/2 : 0,
-        x2: styleLayout==='TB' ? VSEP/2 : (styleLayout==='LR' ? VSEP-NODE_W/2 : VSEP+NODE_W/2),
-        y2: styleLayout==='TB' ? -VSEP+NODE_H/2 : VSEP/2,
-        type:'anc'});
+      allNodes.push({...currentData.ancestors.mother, _x:VSEP/2, _y:-VSEP, depth:-1, type:'anc'});
+      allLinks.push({x1:0, y1:-NODE_H/2, x2:VSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
     }
   }
 
@@ -270,41 +219,67 @@ function redraw() {
     .attr('class', d => d.type==='anc' ? 'ancestor-link' : 'link')
     .attr('d', d => makePath(d.x1, d.y1, d.x2, d.y2));
 
-  /* nodes */
+  /* node groups */
   const nodeGroups = zoomGroup.selectAll('.node-group').data(uniqueNodes).enter()
     .append('g').attr('class','node-group')
     .attr('transform', d => `translate(${d._x-NODE_W/2},${d._y-NODE_H/2})`);
 
+  /* background rect */
   nodeGroups.append('rect')
     .attr('width', NODE_W).attr('height', NODE_H).attr('rx', getRx())
-    .attr('fill',   d => d.gender==='M' ? T.male   : d.gender==='F' ? T.female   : T.unknown)
-    .attr('stroke', d => d.id===currentId ? T.focusBorder : d.gender==='M' ? T.maleBorder : d.gender==='F' ? T.femaleBorder : T.unknownBorder)
+    .attr('fill', d => {
+      if (d.is_deceased) return T.deceased;
+      return d.gender==='M' ? T.male : d.gender==='F' ? T.female : T.unknown;
+    })
+    .attr('stroke', d => {
+      if (d.id === currentId) return T.focusBorder;
+      if (d.is_deceased)      return T.deceasedBorder;
+      return d.gender==='M' ? T.maleBorder : d.gender==='F' ? T.femaleBorder : T.unknownBorder;
+    })
     .attr('stroke-width', d => d.id===currentId ? 2 : 1)
-    .style('filter','drop-shadow(0 4px 12px rgba(0,0,0,0.4))');
+    .attr('stroke-dasharray', d => d.is_deceased ? '4 2' : null)
+    .style('filter','drop-shadow(0 4px 12px rgba(0,0,0,0.3))');
 
+  /* top colour bar */
   nodeGroups.append('rect')
     .attr('width', NODE_W).attr('height', 3).attr('rx', getRx())
-    .attr('fill', d => d.gender==='M' ? T.maleBorder : d.gender==='F' ? T.femaleBorder : T.unknownBorder);
+    .attr('fill', d => {
+      if (d.is_deceased) return T.deceasedBorder;
+      return d.gender==='M' ? T.maleBorder : d.gender==='F' ? T.femaleBorder : T.unknownBorder;
+    });
 
   /* generation label */
   nodeGroups.append('text').attr('x',10).attr('y',16).attr('text-anchor','start')
-    .attr('fill','#000000').attr('font-family','Cinzel,serif').attr('font-size',10).attr('opacity',0.85)
+    .attr('fill','#000000').attr('font-family','Cinzel,serif').attr('font-size',10).attr('opacity',0.7)
     .text(d => d.depth===-1 ? 'P1' : d.depth===0 ? 'G1' : 'G'+(d.depth+1));
 
-  nodeGroups.append('text').attr('x',NODE_W/2).attr('y',26).attr('text-anchor','middle')
-    .attr('fill',T.text).attr('font-family','Crimson Text,serif').attr('font-size',16).attr('font-weight',600)
-    .text(d => d.name || '');
+  /* name */
+  nodeGroups.append('text').attr('x',NODE_W/2).attr('y',28).attr('text-anchor','middle')
+    .attr('fill', d => d.is_deceased ? T.deceasedText : T.text)
+    .attr('font-family','Crimson Text,serif').attr('font-size',16).attr('font-weight',600)
+    .text(d => d.is_deceased ? '† ' + (d.name||'') : (d.name||''));
 
-  nodeGroups.append('text').attr('x',NODE_W/2).attr('y',44).attr('text-anchor','middle')
-    .attr('fill',T.subtext).attr('font-family','Crimson Text,serif').attr('font-size',13).attr('font-style','italic')
-    .text(d => d.dob ? `b. ${d.dob}` : '');
+  /* dob line — shows birth year – death year for deceased */
+  nodeGroups.append('text').attr('x',NODE_W/2).attr('y',46).attr('text-anchor','middle')
+    .attr('fill', d => d.is_deceased ? T.deceasedSub : T.subtext)
+    .attr('font-family','Crimson Text,serif').attr('font-size',12).attr('font-style','italic')
+    .text(d => {
+      if (d.is_deceased && d.dod) {
+        const birthYear = d.dob ? d.dob.substring(0,4) : '?';
+        const deathYear = d.dod.substring(0,4);
+        return `${birthYear} – ${deathYear}`;
+      }
+      return d.dob ? `b. ${d.dob}` : '';
+    });
 
+  /* spouse */
   nodeGroups.filter(d => d.spouse_name).append('text')
-    .attr('x',NODE_W/2).attr('y',62).attr('text-anchor','middle')
-    .attr('fill',T.spouse).attr('font-family','Crimson Text,serif').attr('font-size',13).attr('cursor','pointer')
+    .attr('x',NODE_W/2).attr('y',64).attr('text-anchor','middle')
+    .attr('fill', T.spouse).attr('font-family','Crimson Text,serif').attr('font-size',13).attr('cursor','pointer')
     .text(d => d.spouse_name ? `♦ ${d.spouse_name}` : '')
     .on('click', function(event,d) { event.stopPropagation(); if(d.spouse_id) loadTree(d.spouse_id); });
 
+  /* expand/collapse indicators */
   nodeGroups.filter(d => d.hasHiddenChildren).append('text')
     .attr('class','expand-indicator')
     .attr('x',NODE_W-12).attr('y',16).attr('text-anchor','middle')
@@ -315,27 +290,34 @@ function redraw() {
     .attr('x',NODE_W-12).attr('y',16).attr('text-anchor','middle')
     .attr('fill',T.subtext).attr('font-family','Cinzel,serif').attr('font-size',14).text('−');
 
-  /* click: expand/collapse or navigate */
+  /* click: expand/collapse OR navigate to detail page */
   nodeGroups.on('click', function(event, d) {
     if ((d.children||[]).length > 0) {
       if      (manualCollapsed.has(d.id))  { manualCollapsed.delete(d.id); manualExpanded.add(d.id); }
       else if (d.hasHiddenChildren)         { manualExpanded.add(d.id); }
       else                                  { manualCollapsed.add(d.id); }
       redraw();
-    } else if (d.id !== currentId) {
-      loadTree(d.id);
+    } else {
+      window.location.href = '/accounts/family/' + d.id + '/';
     }
+  });
+
+  /* double-click always navigates */
+  nodeGroups.on('dblclick', function(event, d) {
+    event.stopPropagation();
+    window.location.href = '/accounts/family/' + d.id + '/';
   });
 
   /* tooltip */
   const tooltip = document.getElementById('tooltip');
   nodeGroups
     .on('mousemove', function(event, d) {
-      document.getElementById('tt-name').textContent = d.name;
+      document.getElementById('tt-name').textContent = (d.is_deceased ? '† ' : '') + d.name;
       const det = [];
-      if (d.dob)              det.push('Born: ' + d.dob);
-      if (d.spouse_name)      det.push('Spouse: ' + d.spouse_name);
-      if (d.hasHiddenChildren) det.push('Click to expand');
+      if (d.dob) det.push('Born: ' + d.dob);
+      if (d.is_deceased && d.dod) det.push('Died: ' + d.dod);
+      if (d.spouse_name)          det.push('Spouse: ' + d.spouse_name);
+      if (d.hasHiddenChildren)    det.push('Click to expand');
       document.getElementById('tt-detail').textContent = det.join(' · ');
       tooltip.style.opacity = 1;
       tooltip.style.left    = (event.clientX + 14) + 'px';
@@ -343,38 +325,18 @@ function redraw() {
     })
     .on('mouseleave', () => tooltip.style.opacity = 0);
 
-  /* ── INITIAL POSITION — only on first load or after member change ── */
+  /* initial position */
   if (!zoomBehavior._initialized) {
     const focusNode = uniqueNodes.find(n => n.id === currentId);
     const fx = focusNode ? focusNode._x : 0;
     const fy = focusNode ? focusNode._y : 0;
-    /* place the focused node near the top-centre of the viewport */
-    const tx = W / 2 - fx * currentScale;
-    const ty = 100   - fy * currentScale;
-    svg.call(
-      zoomBehavior.transform,
-      d3.zoomIdentity.translate(tx, ty).scale(currentScale)
-    );
+    const tx = W/2 - fx * currentScale;
+    const ty = 100  - fy * currentScale;
+    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx,ty).scale(currentScale));
     zoomBehavior._initialized = true;
   } else if (savedTransform) {
-    /* restore the exact pan/zoom the user was at before the generation redraw */
     svg.call(zoomBehavior.transform, savedTransform);
   }
-}
-
-function fitNodes(nodes, W, H) {
-  if (!nodes.length) return;
-  const xs   = nodes.map(d=>d._x), ys = nodes.map(d=>d._y);
-  const minX = Math.min(...xs)-NODE_W/2-30, maxX = Math.max(...xs)+NODE_W/2+30;
-  const minY = Math.min(...ys)-NODE_H/2-30, maxY = Math.max(...ys)+NODE_H/2+30;
-  const scale = Math.min(W/(maxX-minX), H/(maxY-minY), 1.5) * 0.85;
-  currentScale = scale;
-  svgEl.transition().duration(600).call(
-    zoomBehavior.transform,
-    d3.zoomIdentity
-      .translate((W-(maxX-minX)*scale)/2 - minX*scale, (H-(maxY-minY)*scale)/2 - minY*scale)
-      .scale(scale)
-  );
 }
 
 loadTree(null);
