@@ -14,11 +14,6 @@ GENDER_CHOICES = [
     ('O', 'Other'),
 ]
 
-# Tibetan calendar animals — cycle of 12 starting from 1900 (Dragon year)
-TIBETAN_ANIMALS = [
-    'Iron Rat', 'Iron Ox', 'Iron Tiger', 'Iron Rabbit',   # placeholder, real calc below
-]
-
 TIBETAN_ANIMAL_CYCLE = [
     'Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake',
     'Horse', 'Sheep', 'Monkey', 'Rooster', 'Dog', 'Pig',
@@ -30,10 +25,8 @@ TIBETAN_ELEMENT_CYCLE = [
 ]
 
 def get_tibetan_year(year):
-    """Return Tibetan element-animal for a given Gregorian year."""
     if not year:
         return ''
-    # Tibetan year offset: 1900 = Iron Rat
     offset = (year - 1900) % 60
     animal_index  = offset % 12
     element_index = offset % 10
@@ -50,11 +43,9 @@ class FamilyMember(models.Model):
     gender         = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True, blank=True)
     marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS, default='Single')
     date_of_birth  = models.DateField(null=True, blank=True)
-    date_of_death  = models.DateField(null=True, blank=True)   # ← new
+    date_of_death  = models.DateField(null=True, blank=True)
     address        = models.TextField(blank=True)
     photo          = models.ImageField(upload_to='members/', blank=True, null=True)
-
-    # Contact & social
     phone          = models.CharField(max_length=30, blank=True)
     facebook       = models.CharField(max_length=200, blank=True)
     instagram      = models.CharField(max_length=200, blank=True)
@@ -100,37 +91,55 @@ class FamilyMember(models.Model):
             self.children_of_father.all(),
             self.children_of_mother.all()
         ))
-        # Remove duplicates (child may appear via both father and mother link)
         seen = set()
         unique = []
         for c in children:
             if c.pk not in seen:
                 seen.add(c.pk)
                 unique.append(c)
-    # Sort oldest (earliest dob) to youngest — None dates go to the right
         return sorted(unique, key=lambda c: c.date_of_birth or date.max)
 
     def __str__(self):
         if self.middle_name:
             return f"{self.first_name} {self.middle_name} {self.last_name[0]}."
         return f"{self.first_name} {self.last_name[0]}."
-    
+
+
+class EditHistory(models.Model):
+    ACTION_CHOICES = [
+        ('add',    'Added'),
+        ('edit',   'Edited'),
+        ('delete', 'Deleted'),
+    ]
+    member      = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name='history')
+    member_name = models.CharField(max_length=200)  # store name in case member deleted
+    action      = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    changed_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    changed_at  = models.DateTimeField(auto_now_add=True)
+    notes       = models.TextField(blank=True)  # optional summary of what changed
+
+    class Meta:
+        ordering = ['-changed_at']
+
+    def __str__(self):
+        return f"{self.changed_by} {self.action} {self.member_name} at {self.changed_at}"
 
 
 class UserProfile(models.Model):
-    user         = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    tree_public  = models.BooleanField(default=False)
+    user        = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    tree_public = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.username} profile"
 
 
 class Invite(models.Model):
-    invited_by  = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invites_sent')
-    email       = models.EmailField()
-    token       = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    accepted    = models.BooleanField(default=False)
-    created_at  = models.DateTimeField(auto_now_add=True)
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invites_sent')
+    email      = models.EmailField()
+    token      = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    accepted   = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Invite to {self.email} from {self.invited_by.username}"

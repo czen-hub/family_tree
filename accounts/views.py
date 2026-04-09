@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib import messages
 from django.conf import settings
-from .models import FamilyMember, UserProfile, Invite
+from .models import FamilyMember, UserProfile, Invite, EditHistory
 from .forms import FamilyMemberForm
 import os
 
@@ -146,6 +146,12 @@ def add_member(request):
             member = form.save(commit=False)
             member.user = request.user
             member.save()
+            EditHistory.objects.create(
+                member=member,
+                member_name=str(member),
+                action='add',
+                changed_by=request.user,
+            )
             return redirect('family_list')
     else:
         form = FamilyMemberForm()
@@ -283,7 +289,6 @@ def invite_send(request):
             invite_url = request.build_absolute_uri(
                 f"/accounts/register/?token={invite.token}"
             )
-            # Send via Resend HTTP API
             import resend
             resend.api_key = os.environ.get('RESEND_API_KEY', '')
             resend.Emails.send({
@@ -327,8 +332,46 @@ def edit_member(request, pk):
     if request.method == 'POST':
         form = FamilyMemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
+            old = {f: getattr(member, f) for f in [
+                'first_name', 'last_name', 'date_of_birth', 'date_of_death', 'gender'
+            ]}
             form.save()
+            new = {f: getattr(member, f) for f in old}
+            changes = [f for f in old if str(old[f]) != str(new[f])]
+            notes = 'Changed: ' + ', '.join(changes) if changes else ''
+            EditHistory.objects.create(
+                member=member,
+                member_name=str(member),
+                action='edit',
+                changed_by=request.user,
+                notes=notes,
+            )
             return redirect('family_detail', pk=pk)
     else:
         form = FamilyMemberForm(instance=member)
     return render(request, 'accounts/edit_member.html', {'form': form, 'member': member})
+
+
+@login_required
+def delete_member(request, pk):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can delete members.')
+        return redirect('family_detail', pk=pk)
+    member = get_object_or_404(FamilyMember, pk=pk)
+    if request.method == 'POST':
+        EditHistory.objects.create(
+            member=None,
+            member_name=str(member),
+            action='delete',
+            changed_by=request.user,
+        )
+        member.delete()
+        messages.success(request, f'{member} has been deleted.')
+        return redirect('family_list')
+    return render(request, 'accounts/confirm_delete.html', {'member': member})
+
+
+@login_required
+def edit_history(request):
+    history = EditHistory.objects.select_related('changed_by', 'member').all()[:100]
+    return render(request, 'accounts/edit_history.html', {'history': history})

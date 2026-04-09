@@ -1,0 +1,17 @@
+{% extends 'accounts/base.html' %}
+{% block content %}
+<div class="main">
+  <div class="card" style="max-width:500px; margin:2rem auto; text-align:center;">
+    <div class="card-title">Confirm Delete</div>
+    <p style="color:var(--text-dim); margin:1rem 0;">
+      Are you sure you want to permanently delete <strong>{{ member }}</strong>?
+      This cannot be undone.
+    </p>
+    <form method="post" style="display:flex; gap:1rem; justify-content:center;">
+      {% csrf_token %}
+      <button type="submit" class="btn" style="background:#8B1a00; color:#f5ede0;">Yes, Delete</button>
+      <a href="{% url 'family_detail' member.pk %}" class="btn">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

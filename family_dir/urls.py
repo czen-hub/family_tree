@@ -24,4 +24,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('', lambda request: redirect('home')),
+    path('delete-member/<int:pk>/', views.delete_member, name='delete_member'),
+    path('edit-history/', views.edit_history, name='edit_history'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
