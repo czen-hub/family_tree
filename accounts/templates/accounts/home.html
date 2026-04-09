@@ -1,9 +1,11 @@
-﻿{% extends 'accounts/base.html' %}
+﻿{% load static %}
+{% extends 'accounts/base.html' %}
+{% extends 'accounts/base.html' %}
 {% block title %}LINK ROOT — Home{% endblock %}
 {% block content %}
 <div class="main">
 
-  <div style="text-align:center; padding:3.5rem 1rem 2.5rem; background-image:url('/media/thanka.jpg'); background-size:cover; background-position:center; background-repeat:no-repeat; position:relative; border-radius:4px; overflow:hidden;">
+  <div style="text-align:center; padding:3.5rem 1rem 2.5rem; background-image:url('{% static "accounts/thanka.jpg" %}'); background-size:cover; background-position:center; background-repeat:no-repeat; position:relative; border-radius:4px; overflow:hidden;">
     <div style="position:absolute; inset:0; background:rgba(237,232,222,0.82); pointer-events:none;"></div>
     <div style="position:relative; z-index:1;">
       <div style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.35em; color:#8a6a30; margin-bottom:0.75rem;">✦ LINK ROOT ✦</div>
