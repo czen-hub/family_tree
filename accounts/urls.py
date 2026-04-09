@@ -17,4 +17,6 @@ urlpatterns = [
     path('invite/', views.invite_send, name='invite_send'),
     path('public/<str:username>/', views.public_tree, name='public_tree'),
     path('public/<str:username>/api/', views.public_tree_json, name='public_tree_json'),
+    path('delete-member/<int:pk>/', views.delete_member, name='delete_member'),
+    path('edit-history/', views.edit_history, name='edit_history'),
 ]
