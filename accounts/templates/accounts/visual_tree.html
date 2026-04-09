@@ -2,34 +2,35 @@
 {% load static %}
 {% block title %}LINK ROOT — Family Tree{% endblock %}
 {% block content %}
-<div class="page-header" style="padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; flex-wrap:wrap; gap:0.75rem;">
-  <div>
-    <div class="page-title">Family Tree</div>
-    <div id="breadcrumb" style="color:var(--text-dim); font-style:italic; font-size:0.9rem; margin-top:0.2rem;"></div>
+
+<div class="page-header" style="padding:0.6rem 1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; flex-wrap:nowrap; gap:0.5rem; overflow-x:auto;">
+  <div style="white-space:nowrap; min-width:0;">
+    <div class="page-title" style="font-size:1rem;">Family Tree</div>
+    <div id="breadcrumb" style="color:var(--text-dim); font-style:italic; font-size:0.75rem; margin-top:0.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px;"></div>
   </div>
-  <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-    <select id="member-jump" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Crimson Text,serif; font-size:0.9rem; outline:none; cursor:pointer;">
-      <option value="">Jump to member...</option>
+  <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:nowrap;">
+    <select id="member-jump" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.25rem 0.4rem; font-family:Crimson Text,serif; font-size:0.8rem; outline:none; cursor:pointer; max-width:130px;">
+      <option value="">Jump...</option>
     </select>
 
     <form method="post" action="{% url 'toggle_privacy' %}" style="margin:0;">
       {% csrf_token %}
       <input type="hidden" name="next" value="{% url 'visual_tree' %}">
-      <button type="submit" class="btn btn-sm"
-        style="{% if profile.tree_public %}background:#4a7a50; color:#f5ede0; border-color:#4a7a50;{% else %}background:#7A2020; color:#f5ede0; border-color:#7A2020;{% endif %}">
+      <button type="submit" class="btn btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem; white-space:nowrap; {% if profile.tree_public %}background:#4a7a50; color:#f5ede0; border-color:#4a7a50;{% else %}background:#7A2020; color:#f5ede0; border-color:#7A2020;{% endif %}">
         {% if profile.tree_public %}🌐 Public{% else %}🔒 Private{% endif %}
       </button>
     </form>
 
     {% if profile.tree_public %}
-    <a href="{% url 'public_tree' request.user.username %}" target="_blank" class="btn btn-sm">Share Link</a>
+    <a href="{% url 'public_tree' request.user.username %}" target="_blank" class="btn btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem;">Share</a>
     {% endif %}
 
-    <a href="{% url 'invite_send' %}" class="btn btn-sm">Invite</a>
+    <a href="{% url 'invite_send' %}" class="btn btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem;">Invite</a>
   </div>
 </div>
 
-<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de; background-image:url('{% static "accounts/boudha.jpeg" %}'); background-size:auto 100%; background-position:center center; background-repeat:no-repeat;">  <div style="position:absolute; inset:0; background:rgba(237,232,222,0.35); z-index:0; pointer-events:none;"></div>
+<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 100px); overflow:hidden; background:#ede8de; background-image:url('{% static "accounts/boudha.jpeg" %}'); background-size:cover; background-position:center center; background-repeat:no-repeat;">
+  <div style="position:absolute; inset:0; background:rgba(237,232,222,0.35); z-index:0; pointer-events:none;"></div>
   <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:2;">
     <div style="font-family:'Cinzel',serif; font-size:0.9rem; color:#7a6430; letter-spacing:0.15em; animation:pulse 1.5s ease-in-out infinite;">TRACING LINEAGE…</div>
   </div>
@@ -53,12 +54,12 @@
 
   @media (max-width: 768px) {
     #tree-container {
-      height: calc(100vh - 110px) !important;
-      background-size: contain !important;
+      height: calc(100vh - 100px) !important;
+      background-size: cover !important;
       background-position: center center !important;
     }
     .page-header {
-      padding: 0.75rem 1rem !important;
+      padding: 0.5rem 0.75rem !important;
     }
     #tooltip {
       display: none;
@@ -131,7 +132,7 @@ async function loadTree(memberId) {
 
 function populateJump(members, focusedId) {
   const sel = document.getElementById('member-jump');
-  sel.innerHTML = '<option value="">Jump to member...</option>';
+  sel.innerHTML = '<option value="">Jump...</option>';
   members.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m.id; opt.textContent = m.name;
@@ -335,9 +336,9 @@ function redraw() {
       else                                  { manualCollapsed.add(d.id); }
       redraw();
       const container = document.getElementById('tree-container');
-      const W = container.clientWidth, H = container.clientHeight;
+      const W = container.clientWidth;
       const tx = W/2 - d._x * currentScale;
-      const ty = H/2 - d._y * currentScale;
+      const ty = 80 - d._y * currentScale;
       d3.select('#tree-svg').transition().duration(500)
         .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
     } else {
@@ -369,15 +370,14 @@ function redraw() {
     })
     .on('mouseleave', () => tooltip.style.opacity = 0);
 
-  /* initial position */
-  /* initial position */
+  /* initial position — root node near top center */
   if (!zoomBehavior._initialized) {
     const focusNode = uniqueNodes.find(n => n.id === currentId);
     const fx = focusNode ? focusNode._x : 0;
     const fy = focusNode ? focusNode._y : 0;
     const tx = W/2 - fx * currentScale;
-    const ty = 80 - fy * currentScale;  // fixed top offset instead of H fraction
-    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx,ty).scale(currentScale));
+    const ty = 80 - fy * currentScale;
+    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
     zoomBehavior._initialized = true;
   } else if (savedTransform) {
     svg.call(zoomBehavior.transform, savedTransform);
