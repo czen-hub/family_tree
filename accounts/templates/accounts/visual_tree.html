@@ -37,11 +37,25 @@
   body.theme-light  #tree-container { background:#ede8de; }
   body.theme-light  .link           { stroke:#c8bea8; }
   body.theme-light  .ancestor-link  { stroke:#a88840; }
+
+  @media (max-width: 768px) {
+    #tree-container {
+      height: calc(100vh - 110px) !important;
+      background-size: contain !important;
+      background-position: center center !important;
+    }
+    .page-header {
+      padding: 0.75rem 1rem !important;
+    }
+    #tooltip {
+      display: none; /* hide tooltip on mobile, use tap instead */
+    }
+  }
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-const NODE_W = 200, NODE_H = 90;  /* slightly taller to fit death line */
+const NODE_W = 200, NODE_H = 90;
 let currentId    = null;
 let zoomBehavior = null;
 let svgEl        = null;
@@ -49,7 +63,7 @@ let currentData  = null;
 let styleLayout  = 'TB';
 let styleNode    = 'rounded';
 let styleLine    = 'elbow';
-let currentScale = 0.7;
+let currentScale = window.innerWidth < 768 ? 0.35 : 0.7;
 let manualExpanded  = new Set();
 let manualCollapsed = new Set();
 let redrawTimer     = null;
@@ -200,17 +214,17 @@ function redraw() {
   collectNodes(currentData.tree, 0, 0, 0, allNodes, allLinks, styleLayout);
 
   if (currentData.ancestors) {
-      const VSEP = 160;
-      const HSEP = NODE_W + 60;  // enough gap so nodes don't overlap
-      if (currentData.ancestors.father) {
-        allNodes.push({...currentData.ancestors.father, _x:-HSEP/2, _y:-VSEP, depth:-1, type:'anc'});
-        allLinks.push({x1:0, y1:-NODE_H/2, x2:-HSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
-      }
-      if (currentData.ancestors.mother) {
-        allNodes.push({...currentData.ancestors.mother, _x:HSEP/2, _y:-VSEP, depth:-1, type:'anc'});
-        allLinks.push({x1:0, y1:-NODE_H/2, x2:HSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
-      }
+    const VSEP = 160;
+    const HSEP = NODE_W + 60;
+    if (currentData.ancestors.father) {
+      allNodes.push({...currentData.ancestors.father, _x:-HSEP/2, _y:-VSEP, depth:-1, type:'anc'});
+      allLinks.push({x1:0, y1:-NODE_H/2, x2:-HSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
     }
+    if (currentData.ancestors.mother) {
+      allNodes.push({...currentData.ancestors.mother, _x:HSEP/2, _y:-VSEP, depth:-1, type:'anc'});
+      allLinks.push({x1:0, y1:-NODE_H/2, x2:HSEP/2, y2:-VSEP+NODE_H/2, type:'anc'});
+    }
+  }
 
   const seen = new Set();
   const uniqueNodes = allNodes.filter(n => { if(seen.has(n.id)) return false; seen.add(n.id); return true; });
@@ -260,7 +274,7 @@ function redraw() {
     .attr('font-family','Crimson Text,serif').attr('font-size',16).attr('font-weight',600)
     .text(d => d.is_deceased ? '† ' + (d.name||'') : (d.name||''));
 
-  /* dob line — shows birth year – death year for deceased */
+  /* dob / dod line */
   nodeGroups.append('text').attr('x',NODE_W/2).attr('y',46).attr('text-anchor','middle')
     .attr('fill', d => d.is_deceased ? T.deceasedSub : T.subtext)
     .attr('font-family','Crimson Text,serif').attr('font-size',12).attr('font-style','italic')
@@ -291,26 +305,32 @@ function redraw() {
     .attr('x',NODE_W-12).attr('y',16).attr('text-anchor','middle')
     .attr('fill',T.subtext).attr('font-family','Cinzel,serif').attr('font-size',14).text('−');
 
-  /* click: expand/collapse OR navigate to detail page */
+  /* click: expand/collapse OR navigate */
   nodeGroups.on('click', function(event, d) {
-      if ((d.children||[]).length > 0) {
-        if      (manualCollapsed.has(d.id))  { manualCollapsed.delete(d.id); manualExpanded.add(d.id); }
-        else if (d.hasHiddenChildren)         { manualExpanded.add(d.id); }
-        else                                  { manualCollapsed.add(d.id); }
-        redraw();
-        // Centre the clicked node after redraw
-        const container = document.getElementById('tree-container');
-        const W = container.clientWidth, H = container.clientHeight;
-        const tx = W/2 - d._x * currentScale;
-        const ty = H/2 - d._y * currentScale;
-        d3.select('#tree-svg').transition().duration(500)
-          .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
-      } else {
-        window.location.href = '/accounts/family/' + d.id + '/';
-      }
-    });
+    if ((d.children||[]).length > 0) {
+      if      (manualCollapsed.has(d.id))  { manualCollapsed.delete(d.id); manualExpanded.add(d.id); }
+      else if (d.hasHiddenChildren)         { manualExpanded.add(d.id); }
+      else                                  { manualCollapsed.add(d.id); }
+      redraw();
+      // Centre the clicked node after redraw
+      const container = document.getElementById('tree-container');
+      const W = container.clientWidth, H = container.clientHeight;
+      const tx = W/2 - d._x * currentScale;
+      const ty = H/2 - d._y * currentScale;
+      d3.select('#tree-svg').transition().duration(500)
+        .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
+    } else {
+      window.location.href = '/accounts/family/' + d.id + '/';
+    }
+  });
 
-  /* tooltip */
+  /* double-click always navigates */
+  nodeGroups.on('dblclick', function(event, d) {
+    event.stopPropagation();
+    window.location.href = '/accounts/family/' + d.id + '/';
+  });
+
+  /* tooltip — desktop only */
   const tooltip = document.getElementById('tooltip');
   nodeGroups
     .on('mousemove', function(event, d) {
@@ -333,7 +353,7 @@ function redraw() {
     const fx = focusNode ? focusNode._x : 0;
     const fy = focusNode ? focusNode._y : 0;
     const tx = W/2 - fx * currentScale;
-    const ty = 100  - fy * currentScale;
+    const ty = H/2 - fy * currentScale;  /* centre vertically on mobile too */
     svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx,ty).scale(currentScale));
     zoomBehavior._initialized = true;
   } else if (savedTransform) {
