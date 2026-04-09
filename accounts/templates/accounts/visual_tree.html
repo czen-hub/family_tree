@@ -1,4 +1,5 @@
 ﻿{% extends 'accounts/base.html' %}
+{% load static %}
 {% block title %}LINK ROOT — Family Tree{% endblock %}
 {% block content %}
 <div class="page-header" style="padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; flex-wrap:wrap; gap:0.75rem;">
@@ -28,9 +29,7 @@
   </div>
 </div>
 
-<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de; background-image:url('/media/familypic.png'); background-size:auto 100%; background-position:center center; background-repeat:no-repeat;">
-  <div style="position:absolute; inset:0; background:rgba(237,232,222,0.35); z-index:0; pointer-events:none;"></div>
-
+<div id="tree-container" style="position:relative; z-index:1; width:100%; height:calc(100vh - 145px); overflow:hidden; background:#ede8de; background-image:url('{% static "accounts/boudha.jpeg" %}'); background-size:auto 100%; background-position:center center; background-repeat:no-repeat;">  <div style="position:absolute; inset:0; background:rgba(237,232,222,0.35); z-index:0; pointer-events:none;"></div>
   <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:2;">
     <div style="font-family:'Cinzel',serif; font-size:0.9rem; color:#7a6430; letter-spacing:0.15em; animation:pulse 1.5s ease-in-out infinite;">TRACING LINEAGE…</div>
   </div>
@@ -371,12 +370,13 @@ function redraw() {
     .on('mouseleave', () => tooltip.style.opacity = 0);
 
   /* initial position */
+  /* initial position */
   if (!zoomBehavior._initialized) {
     const focusNode = uniqueNodes.find(n => n.id === currentId);
     const fx = focusNode ? focusNode._x : 0;
     const fy = focusNode ? focusNode._y : 0;
     const tx = W/2 - fx * currentScale;
-    const ty = H/6 - fy * currentScale;
+    const ty = 80 - fy * currentScale;  // fixed top offset instead of H fraction
     svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx,ty).scale(currentScale));
     zoomBehavior._initialized = true;
   } else if (savedTransform) {
