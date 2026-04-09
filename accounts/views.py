@@ -54,7 +54,7 @@ def dashboard(request):
 
 @login_required
 def family_list(request):
-    members = FamilyMember.objects.all()
+    members = FamilyMember.objects.all().order_by('first_name', 'last_name')
     return render(request, 'accounts/family_list.html', {'members': members})
 
 
