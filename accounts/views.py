@@ -4,10 +4,10 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib import messages
-from django.core.mail import send_mail
 from django.conf import settings
 from .models import FamilyMember, UserProfile, Invite
 from .forms import FamilyMemberForm
+import os
 
 
 def home(request):
@@ -283,19 +283,21 @@ def invite_send(request):
             invite_url = request.build_absolute_uri(
                 f"/accounts/register/?token={invite.token}"
             )
-            send_mail(
-                subject='You are invited to join Link Root',
-                message=(
+            # Send via Resend HTTP API
+            import resend
+            resend.api_key = os.environ.get('RESEND_API_KEY', '')
+            resend.Emails.send({
+                "from": "onboarding@resend.dev",
+                "to": email,
+                "subject": "You are invited to join Link Root",
+                "text": (
                     f"Hi,\n\n"
                     f"{request.user.username} has invited you to join Link Root "
                     f"— a family tree app.\n\n"
                     f"Click the link below to create your account:\n{invite_url}\n\n"
                     f"Tashi Delek!"
                 ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
+            })
             sent = True
     invites = Invite.objects.filter(invited_by=request.user).order_by('-created_at')
     return render(request, 'accounts/invite_send.html', {'sent': sent, 'invites': invites})
