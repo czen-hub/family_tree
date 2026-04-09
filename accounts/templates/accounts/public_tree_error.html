@@ -1,0 +1,15 @@
+{% extends 'accounts/base.html' %}
+{% block title %}LINK ROOT — Tree Unavailable{% endblock %}
+{% block content %}
+<div class="main" style="text-align:center; padding:4rem 1rem;">
+  <div style="font-size:2.5rem; opacity:0.3; margin-bottom:1rem;">🌳</div>
+  {% if reason == 'private' %}
+    <div class="page-title" style="margin-bottom:0.5rem;">This Tree is Private</div>
+    <p style="color:var(--text-dim); font-style:italic;">The owner has not made their family tree public.</p>
+  {% else %}
+    <div class="page-title" style="margin-bottom:0.5rem;">Tree Not Found</div>
+    <p style="color:var(--text-dim); font-style:italic;">This family tree does not exist.</p>
+  {% endif %}
+  <a href="{% url 'home' %}" class="btn" style="margin-top:1.5rem; background:#7A2020; color:#f5ede0; border-color:#7A2020;">Go Home</a>
+</div>
+{% endblock %}

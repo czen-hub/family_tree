@@ -1,0 +1,107 @@
+﻿{% extends 'accounts/base.html' %}
+{% block title %}LINK ROOT — Profile{% endblock %}
+{% block content %}
+<div class="main">
+
+  <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.75rem;">
+    <div>
+      <div class="page-title">{{ request.user.username }}</div>
+      <div style="color:var(--text-dim); font-style:italic; font-size:0.9rem; margin-top:0.2rem;">{{ request.user.email }}</div>
+    </div>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <a href="{% url 'invite_send' %}" class="btn btn-sm" style="background:#7A2020; color:#f5ede0; border-color:#7A2020;">Invite Family</a>
+      <a href="{% url 'visual_tree' %}" class="btn btn-sm">View Tree</a>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- Account Info -->
+    <div class="card-rug">
+      <div class="card-title">Account</div>
+      <div class="detail-row">
+        <span class="detail-label">Username</span>
+        <span class="detail-value">{{ request.user.username }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Email</span>
+        <span class="detail-value">{{ request.user.email|default:"—" }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Member Since</span>
+        <span class="detail-value">{{ request.user.date_joined|date:"M d, Y" }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Total Members</span>
+        <span class="detail-value">{{ total_members }}</span>
+      </div>
+    </div>
+
+    <!-- Privacy Settings -->
+    <div class="card-rug">
+      <div class="card-title">Tree Privacy</div>
+      <div class="detail-row">
+        <span class="detail-label">Status</span>
+        <span class="detail-value">
+          {% if profile.tree_public %}
+            <span style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em; padding:0.2rem 0.6rem; background:rgba(0,120,60,0.08); border:1px solid #4a8a60; color:#4a8a60;">🌐 Public</span>
+          {% else %}
+            <span style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em; padding:0.2rem 0.6rem; background:rgba(139,26,0,0.07); border:1px solid var(--gold-dim); color:var(--gold-dim);">🔒 Private</span>
+          {% endif %}
+        </span>
+      </div>
+      {% if profile.tree_public %}
+      <div class="detail-row">
+        <span class="detail-label">Public URL</span>
+        <span class="detail-value">
+          <a href="{% url 'public_tree' request.user.username %}" target="_blank" class="text-link">
+            /accounts/public/{{ request.user.username }}/
+          </a>
+        </span>
+      </div>
+      {% endif %}
+      <div class="detail-row" style="margin-top:0.75rem;">
+        <span class="detail-label"></span>
+        <span class="detail-value">
+          <form method="post" action="{% url 'toggle_privacy' %}" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'profile' %}">
+            <button type="submit" class="btn btn-sm"
+              style="{% if profile.tree_public %}background:#4a7a50; color:#f5ede0; border-color:#4a7a50;{% else %}background:#7A2020; color:#f5ede0; border-color:#7A2020;{% endif %}">
+              {% if profile.tree_public %}Make Private{% else %}Make Public{% endif %}
+            </button>
+          </form>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invitations -->
+  <div class="section">
+    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Invitations Sent</span>
+      <a href="{% url 'invite_send' %}" class="btn btn-sm" style="background:#7A2020; color:#f5ede0; border-color:#7A2020;">+ New Invite</a>
+    </div>
+    {% if invites %}
+    <ul class="member-list">
+      {% for invite in invites %}
+      <li style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <span class="text-link">{{ invite.email }}</span>
+        <span style="display:flex; gap:0.5rem; align-items:center;">
+          <span style="font-size:0.8rem; color:var(--text-dim);">{{ invite.created_at|date:"M d, Y" }}</span>
+          {% if invite.accepted %}
+            <span style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; padding:0.15rem 0.5rem; background:rgba(0,120,60,0.08); border:1px solid #4a8a60; color:#4a8a60;">Accepted</span>
+          {% else %}
+            <span style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; padding:0.15rem 0.5rem; background:rgba(139,26,0,0.07); border:1px solid var(--gold-dim); color:var(--gold-dim);">Pending</span>
+          {% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No invitations sent yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -3,7 +3,10 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from .models import FamilyMember
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import FamilyMember, UserProfile, Invite
 from .forms import FamilyMemberForm
 
 
@@ -12,14 +15,25 @@ def home(request):
 
 
 def register(request):
+    token = request.GET.get('token')
+    invite = None
+    if token:
+        try:
+            invite = Invite.objects.get(token=token, accepted=False)
+        except Invite.DoesNotExist:
+            pass
+
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
-            form.save()
+            user = form.save()
+            if invite:
+                invite.accepted = True
+                invite.save()
             return redirect('login')
     else:
         form = UserCreationForm()
-    return render(request, 'accounts/register.html', {'form': form})
+    return render(request, 'accounts/register.html', {'form': form, 'invite': invite})
 
 
 def login_view(request):
@@ -63,7 +77,6 @@ def family_detail(request, pk):
     member = get_object_or_404(FamilyMember, pk=pk)
     children = member.get_children()
 
-    # Siblings — share the same father or mother, exclude self
     siblings = FamilyMember.objects.none()
     if member.father:
         siblings = siblings | FamilyMember.objects.filter(father=member.father).exclude(pk=pk)
@@ -71,7 +84,6 @@ def family_detail(request, pk):
         siblings = siblings | FamilyMember.objects.filter(mother=member.mother).exclude(pk=pk)
     siblings = siblings.distinct()
 
-    # Cousins — children of parent's siblings (same generation)
     cousins = FamilyMember.objects.none()
     parent_siblings = FamilyMember.objects.none()
     if member.father:
@@ -101,7 +113,6 @@ def family_detail(request, pk):
         )
     cousins = cousins.distinct().exclude(pk=pk)
 
-    # Nieces and nephews — children of siblings
     nieces_nephews = FamilyMember.objects.none()
     for sibling in siblings:
         nieces_nephews = nieces_nephews | FamilyMember.objects.filter(
@@ -111,7 +122,6 @@ def family_detail(request, pk):
         )
     nieces_nephews = nieces_nephews.distinct()
 
-    # Grandchildren — children of children
     grandchildren = FamilyMember.objects.none()
     for child in children:
         for grandchild in child.get_children():
@@ -142,51 +152,68 @@ def add_member(request):
     return render(request, 'accounts/add_member.html', {'form': form})
 
 
+def _build_member_dict(member):
+    return {
+        'id': member.pk,
+        'name': str(member),
+        'full_name': f"{member.first_name} {member.middle_name} {member.last_name}".strip(),
+        'gender': member.gender,
+        'dob': str(member.date_of_birth) if member.date_of_birth else '',
+        'dod': str(member.date_of_death) if member.date_of_death else '',
+        'is_deceased': member.is_deceased,
+        'age': member.age,
+        'spouse_id': member.spouse.pk if member.spouse else None,
+        'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
+        'photo': member.photo.url if member.photo else '',
+    }
+
+
+def _build_descendants(member, visited=None):
+    if visited is None:
+        visited = set()
+    if member.pk in visited:
+        return None
+    visited.add(member.pk)
+    children = member.get_children()
+    data = _build_member_dict(member)
+    data['children'] = [
+        node for node in (_build_descendants(c, visited) for c in children)
+        if node is not None
+    ]
+    return data
+
+
+def _build_ancestors(member, depth=0):
+    if depth > 4:
+        return None
+    data = _build_member_dict(member)
+    data['father'] = _build_ancestors(member.father, depth + 1) if member.father else None
+    data['mother'] = _build_ancestors(member.mother, depth + 1) if member.mother else None
+    return data
+
+
+def _tree_json_response(member):
+    return {
+        'focused_id': member.pk,
+        'focused_name': str(member),
+        'tree': _build_descendants(member),
+        'ancestors': _build_ancestors(member),
+        'all_members': [
+            {
+                'id': m.pk,
+                'name': str(m),
+                'gender': m.gender,
+                'last_name': m.last_name,
+                'photo': m.photo.url if m.photo else '',
+            }
+            for m in FamilyMember.objects.all()
+        ]
+    }
+
+
 @login_required
 def family_tree_json(request):
     member_id = request.GET.get('id')
-
-    def build_descendants(member, visited=None):
-        if visited is None:
-            visited = set()
-        if member.pk in visited:
-            return None
-        visited.add(member.pk)
-        children = member.get_children()
-        return {
-            'id': member.pk,
-            'name': str(member),
-            'full_name': f"{member.first_name} {member.middle_name} {member.last_name}".strip(),
-            'gender': member.gender,
-            'dob': str(member.date_of_birth) if member.date_of_birth else '',
-            'dod': str(member.date_of_death) if member.date_of_death else '',   # ← add this
-            'is_deceased': member.is_deceased,                                   # ← add this
-            'spouse_id': member.spouse.pk if member.spouse else None,
-            'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
-            'photo': member.photo.url if member.photo else '',
-            'children': [
-                node for node in (build_descendants(c, visited) for c in children)
-                if node is not None
-        ],
-    }
-
-    def build_ancestors(member, depth=0):
-        if depth > 4:
-            return None
-        return {
-            'id': member.pk,
-            'name': str(member),
-            'gender': member.gender,
-            'dob': str(member.date_of_birth) if member.date_of_birth else '',
-            'spouse_id': member.spouse.pk if member.spouse else None,
-            'spouse_name': f"{member.spouse.first_name} {member.spouse.last_name}" if member.spouse else '',
-            'dod': str(member.date_of_death) if member.date_of_death else '',   # ← add this
-            'is_deceased': member.is_deceased,                                   # ← 
-            'photo': member.photo.url if member.photo else '',
-            'father': build_ancestors(member.father, depth + 1) if member.father else None,
-            'mother': build_ancestors(member.mother, depth + 1) if member.mother else None,
-        }
-
     if member_id:
         try:
             member = FamilyMember.objects.get(pk=member_id)
@@ -198,28 +225,98 @@ def family_tree_json(request):
             member = FamilyMember.objects.first()
         if not member:
             return JsonResponse({'tree': None, 'ancestors': None})
+    return JsonResponse(_tree_json_response(member))
 
-    return JsonResponse({
-        'focused_id': member.pk,
-        'focused_name': str(member),
-        'tree': build_descendants(member),
-        'ancestors': build_ancestors(member),
-        'all_members': [
-            {
-                'id': m.pk,
-                'name': str(m),
-                'gender': m.gender,
-                'last_name': m.last_name,
-                'photo': m.photo.url if m.photo else '',
-            }
-            for m in FamilyMember.objects.all()
-        ]
+
+def public_tree_json(request, username):
+    from django.contrib.auth.models import User as AuthUser
+    try:
+        user = AuthUser.objects.get(username=username)
+        profile = UserProfile.objects.get(user=user)
+    except (AuthUser.DoesNotExist, UserProfile.DoesNotExist):
+        return JsonResponse({'error': 'Not found'}, status=404)
+    if not profile.tree_public:
+        return JsonResponse({'error': 'This tree is private'}, status=403)
+    member_id = request.GET.get('id')
+    if member_id:
+        try:
+            member = FamilyMember.objects.get(pk=member_id)
+        except FamilyMember.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+    else:
+        member = FamilyMember.objects.filter(father__isnull=True).order_by('date_of_birth').first()
+        if not member:
+            member = FamilyMember.objects.first()
+        if not member:
+            return JsonResponse({'tree': None, 'ancestors': None})
+    return JsonResponse(_tree_json_response(member))
+
+
+def public_tree(request, username):
+    from django.contrib.auth.models import User as AuthUser
+    try:
+        user = AuthUser.objects.get(username=username)
+        profile = UserProfile.objects.get(user=user)
+    except (AuthUser.DoesNotExist, UserProfile.DoesNotExist):
+        return render(request, 'accounts/public_tree_error.html', {'reason': 'not_found'})
+    if not profile.tree_public:
+        return render(request, 'accounts/public_tree_error.html', {'reason': 'private'})
+    return render(request, 'accounts/public_tree.html', {'tree_owner': user})
+
+
+@login_required
+def toggle_privacy(request):
+    if request.method == 'POST':
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile.tree_public = not profile.tree_public
+        profile.save()
+    return redirect(request.POST.get('next', 'visual_tree'))
+
+
+@login_required
+def invite_send(request):
+    sent = False
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        if email:
+            invite = Invite.objects.create(invited_by=request.user, email=email)
+            invite_url = request.build_absolute_uri(
+                f"/accounts/register/?token={invite.token}"
+            )
+            send_mail(
+                subject='You are invited to join Link Root',
+                message=(
+                    f"Hi,\n\n"
+                    f"{request.user.username} has invited you to join Link Root "
+                    f"— a family tree app.\n\n"
+                    f"Click the link below to create your account:\n{invite_url}\n\n"
+                    f"Tashi Delek!"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            sent = True
+    invites = Invite.objects.filter(invited_by=request.user).order_by('-created_at')
+    return render(request, 'accounts/invite_send.html', {'sent': sent, 'invites': invites})
+
+
+@login_required
+def profile(request):
+    prof, _ = UserProfile.objects.get_or_create(user=request.user)
+    invites = Invite.objects.filter(invited_by=request.user).order_by('-created_at')
+    total_members = FamilyMember.objects.count()
+    return render(request, 'accounts/profile.html', {
+        'profile': prof,
+        'invites': invites,
+        'total_members': total_members,
     })
 
 
 @login_required
 def visual_tree(request):
-    return render(request, 'accounts/visual_tree.html')
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    return render(request, 'accounts/visual_tree.html', {'profile': profile})
 
 
 @login_required

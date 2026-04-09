@@ -1,30 +1,16 @@
-﻿{% extends 'accounts/base.html' %}
-{% block title %}LINK ROOT — Family Tree{% endblock %}
+{% extends 'accounts/base.html' %}
+{% block title %}LINK ROOT — {{ tree_owner.username }}'s Family Tree{% endblock %}
 {% block content %}
 <div class="page-header" style="padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; flex-wrap:wrap; gap:0.75rem;">
   <div>
-    <div class="page-title">Family Tree</div>
+    <div class="page-title">{{ tree_owner.username }}'s Family Tree</div>
     <div id="breadcrumb" style="color:var(--text-dim); font-style:italic; font-size:0.9rem; margin-top:0.2rem;"></div>
   </div>
   <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
     <select id="member-jump" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.35rem 0.75rem; font-family:Crimson Text,serif; font-size:0.9rem; outline:none; cursor:pointer;">
       <option value="">Jump to member...</option>
     </select>
-
-    <form method="post" action="{% url 'toggle_privacy' %}" style="margin:0;">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{% url 'visual_tree' %}">
-      <button type="submit" class="btn btn-sm"
-        style="{% if profile.tree_public %}background:#4a7a50; color:#f5ede0; border-color:#4a7a50;{% else %}background:#7A2020; color:#f5ede0; border-color:#7A2020;{% endif %}">
-        {% if profile.tree_public %}🌐 Public{% else %}🔒 Private{% endif %}
-      </button>
-    </form>
-
-    {% if profile.tree_public %}
-    <a href="{% url 'public_tree' request.user.username %}" target="_blank" class="btn btn-sm">Share Link</a>
-    {% endif %}
-
-    <a href="{% url 'invite_send' %}" class="btn btn-sm">Invite</a>
+    <span style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; padding:0.2rem 0.6rem; background:rgba(0,120,60,0.08); border:1px solid #4a8a60; color:#4a8a60;">🌐 Public View</span>
   </div>
 </div>
 
@@ -58,12 +44,8 @@
       background-size: contain !important;
       background-position: center center !important;
     }
-    .page-header {
-      padding: 0.75rem 1rem !important;
-    }
-    #tooltip {
-      display: none;
-    }
+    .page-header { padding: 0.75rem 1rem !important; }
+    #tooltip { display: none; }
   }
 </style>
 
@@ -74,9 +56,6 @@ let currentId    = null;
 let zoomBehavior = null;
 let svgEl        = null;
 let currentData  = null;
-let styleLayout  = 'TB';
-let styleNode    = 'rounded';
-let styleLine    = 'elbow';
 let currentScale = window.innerWidth < 768 ? 0.35 : 0.7;
 let manualExpanded  = new Set();
 let manualCollapsed = new Set();
@@ -113,7 +92,7 @@ async function loadTree(memberId) {
   manualExpanded.clear();
   manualCollapsed.clear();
   if (zoomBehavior) zoomBehavior._initialized = false;
-  const url = "{% url 'family_tree_json' %}" + (memberId ? '?id=' + memberId : '');
+  const url = "{% url 'public_tree_json' tree_owner.username %}" + (memberId ? '?id=' + memberId : '');
   try {
     const res  = await fetch(url);
     const data = await res.json();
@@ -150,12 +129,11 @@ function showEmpty() {
   document.getElementById('loading').innerHTML =
     '<div style="text-align:center;">' +
     '<div style="font-size:2rem;opacity:0.3;margin-bottom:1rem;">🌳</div>' +
-    '<div style="font-family:Cinzel,serif;color:#7a6430;margin-bottom:0.75rem;">No Members Yet</div>' +
-    '<a href="/accounts/add-member/" style="color:#c9a84c;text-decoration:none;font-family:Cinzel,serif;font-size:0.8rem;border:1px solid #7a6430;padding:0.5rem 1.2rem;">Add First Member</a>' +
+    '<div style="font-family:Cinzel,serif;color:#7a6430;">No members in this tree.</div>' +
     '</div>';
 }
 
-function getRx() { return styleNode==='rounded' ? 16 : styleNode==='box' ? 3 : 32; }
+function getRx() { return 16; }
 
 function makePath(x1,y1,x2,y2) {
   const m = (y1+y2)/2;
@@ -175,7 +153,7 @@ function subtreeWidth(node, depth) {
   return children.reduce((sum, child) => sum + subtreeWidth(child, depth+1), 0);
 }
 
-function collectNodes(node, main, cross, depth, allNodes, allLinks, layout) {
+function collectNodes(node, main, cross, depth, allNodes, allLinks) {
   if (!node) return;
   const x = cross, y = main;
   const hasHiddenChildren = (node.children||[]).length > 0 && !isExpanded(node, depth);
@@ -191,7 +169,7 @@ function collectNodes(node, main, cross, depth, allNodes, allLinks, layout) {
     const cc = cross + offset + widths[i]/2;
     const cm = main  + VSEP;
     allLinks.push({x1:x, y1:y+NODE_H/2, x2:cc, y2:cm-NODE_H/2, type:'desc'});
-    collectNodes(child, cm, cc, depth+1, allNodes, allLinks, layout);
+    collectNodes(child, cm, cc, depth+1, allNodes, allLinks);
     offset += widths[i];
   });
 }
@@ -208,7 +186,6 @@ function redraw() {
 
   d3.select('#tree-svg').selectAll('*').remove();
   const svg = d3.select('#tree-svg');
-  svgEl = svg;
   const zoomGroup = svg.append('g');
 
   zoomBehavior = d3.zoom().scaleExtent([0.05,3]).on('zoom', e => {
@@ -225,7 +202,7 @@ function redraw() {
   svg.call(zoomBehavior);
 
   const allNodes = [], allLinks = [];
-  collectNodes(currentData.tree, 0, 0, 0, allNodes, allLinks, styleLayout);
+  collectNodes(currentData.tree, 0, 0, 0, allNodes, allLinks);
 
   if (currentData.ancestors) {
     const VSEP = 170;
@@ -243,17 +220,14 @@ function redraw() {
   const seen = new Set();
   const uniqueNodes = allNodes.filter(n => { if(seen.has(n.id)) return false; seen.add(n.id); return true; });
 
-  /* links */
   zoomGroup.selectAll('path.tree-link').data(allLinks).enter().append('path')
     .attr('class', d => d.type==='anc' ? 'ancestor-link' : 'link')
     .attr('d', d => makePath(d.x1, d.y1, d.x2, d.y2));
 
-  /* node groups */
   const nodeGroups = zoomGroup.selectAll('.node-group').data(uniqueNodes).enter()
     .append('g').attr('class','node-group')
     .attr('transform', d => `translate(${d._x-NODE_W/2},${d._y-NODE_H/2})`);
 
-  /* background rect */
   nodeGroups.append('rect')
     .attr('width', NODE_W).attr('height', NODE_H).attr('rx', getRx())
     .attr('fill', d => {
@@ -269,7 +243,6 @@ function redraw() {
     .attr('stroke-dasharray', d => d.is_deceased ? '4 2' : null)
     .style('filter','drop-shadow(0 4px 12px rgba(0,0,0,0.3))');
 
-  /* top colour bar */
   nodeGroups.append('rect')
     .attr('width', NODE_W).attr('height', 3).attr('rx', getRx())
     .attr('fill', d => {
@@ -277,18 +250,15 @@ function redraw() {
       return d.gender==='M' ? T.maleBorder : d.gender==='F' ? T.femaleBorder : T.unknownBorder;
     });
 
-  /* generation label */
   nodeGroups.append('text').attr('x',10).attr('y',16).attr('text-anchor','start')
     .attr('fill','#000000').attr('font-family','Cinzel,serif').attr('font-size',10).attr('opacity',0.7)
     .text(d => d.depth===-1 ? 'P1' : d.depth===0 ? 'G1' : 'G'+(d.depth+1));
 
-  /* name */
   nodeGroups.append('text').attr('x',NODE_W/2).attr('y',30).attr('text-anchor','middle')
     .attr('fill', d => d.is_deceased ? T.deceasedText : T.text)
     .attr('font-family','Crimson Text,serif').attr('font-size',16).attr('font-weight',600)
     .text(d => d.is_deceased ? '† ' + (d.name||'') : (d.name||''));
 
-  /* dob / dod line */
   nodeGroups.append('text').attr('x',NODE_W/2).attr('y',48).attr('text-anchor','middle')
     .attr('fill', d => d.is_deceased ? T.deceasedSub : T.subtext)
     .attr('font-family','Crimson Text,serif').attr('font-size',12).attr('font-style','italic')
@@ -301,7 +271,6 @@ function redraw() {
       return d.dob ? `b. ${d.dob}` : '';
     });
 
-  /* age line */
   nodeGroups.append('text').attr('x',NODE_W/2).attr('y',63).attr('text-anchor','middle')
     .attr('fill', d => d.is_deceased ? T.deceasedSub : T.subtext)
     .attr('font-family','Crimson Text,serif').attr('font-size',11).attr('font-style','italic')
@@ -310,14 +279,11 @@ function redraw() {
       return d.is_deceased ? `lived ${d.age} yrs` : `${d.age} yrs old`;
     });
 
-  /* spouse */
   nodeGroups.filter(d => d.spouse_name).append('text')
     .attr('x',NODE_W/2).attr('y',80).attr('text-anchor','middle')
-    .attr('fill', T.spouse).attr('font-family','Crimson Text,serif').attr('font-size',13).attr('cursor','pointer')
-    .text(d => d.spouse_name ? `♦ ${d.spouse_name}` : '')
-    .on('click', function(event,d) { event.stopPropagation(); if(d.spouse_id) loadTree(d.spouse_id); });
+    .attr('fill', T.spouse).attr('font-family','Crimson Text,serif').attr('font-size',13)
+    .text(d => d.spouse_name ? `♦ ${d.spouse_name}` : '');
 
-  /* expand/collapse indicators */
   nodeGroups.filter(d => d.hasHiddenChildren).append('text')
     .attr('class','expand-indicator')
     .attr('x',NODE_W-12).attr('y',16).attr('text-anchor','middle')
@@ -328,7 +294,7 @@ function redraw() {
     .attr('x',NODE_W-12).attr('y',16).attr('text-anchor','middle')
     .attr('fill',T.subtext).attr('font-family','Cinzel,serif').attr('font-size',14).text('−');
 
-  /* click: expand/collapse OR navigate */
+  /* click — expand/collapse only, no navigation in public view */
   nodeGroups.on('click', function(event, d) {
     if ((d.children||[]).length > 0) {
       if      (manualCollapsed.has(d.id))  { manualCollapsed.delete(d.id); manualExpanded.add(d.id); }
@@ -341,18 +307,9 @@ function redraw() {
       const ty = H/2 - d._y * currentScale;
       d3.select('#tree-svg').transition().duration(500)
         .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
-    } else {
-      window.location.href = '/accounts/family/' + d.id + '/';
     }
   });
 
-  /* double-click always navigates */
-  nodeGroups.on('dblclick', function(event, d) {
-    event.stopPropagation();
-    window.location.href = '/accounts/family/' + d.id + '/';
-  });
-
-  /* tooltip — desktop only */
   const tooltip = document.getElementById('tooltip');
   nodeGroups
     .on('mousemove', function(event, d) {
@@ -361,8 +318,8 @@ function redraw() {
       if (d.dob) det.push('Born: ' + d.dob);
       if (d.is_deceased && d.dod) det.push('Died: ' + d.dod);
       if (d.age) det.push(d.is_deceased ? `lived ${d.age} yrs` : `${d.age} yrs old`);
-      if (d.spouse_name)          det.push('Spouse: ' + d.spouse_name);
-      if (d.hasHiddenChildren)    det.push('Click to expand');
+      if (d.spouse_name) det.push('Spouse: ' + d.spouse_name);
+      if (d.hasHiddenChildren) det.push('Click to expand');
       document.getElementById('tt-detail').textContent = det.join(' · ');
       tooltip.style.opacity = 1;
       tooltip.style.left    = (event.clientX + 14) + 'px';
@@ -370,7 +327,6 @@ function redraw() {
     })
     .on('mouseleave', () => tooltip.style.opacity = 0);
 
-  /* initial position */
   if (!zoomBehavior._initialized) {
     const focusNode = uniqueNodes.find(n => n.id === currentId);
     const fx = focusNode ? focusNode._x : 0;

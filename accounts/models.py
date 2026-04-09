@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from datetime import date
+import uuid
 
 MARITAL_STATUS = [
     ('Single', 'Single'),
@@ -79,6 +80,15 @@ class FamilyMember(models.Model):
         return self.date_of_death is not None
 
     @property
+    def age(self):
+        if not self.date_of_birth:
+            return None
+        end = self.date_of_death or date.today()
+        return end.year - self.date_of_birth.year - (
+            (end.month, end.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
+
+    @property
     def tibetan_year(self):
         if self.date_of_birth:
             return get_tibetan_year(self.date_of_birth.year)
@@ -104,3 +114,23 @@ class FamilyMember(models.Model):
         if self.middle_name:
             return f"{self.first_name} {self.middle_name} {self.last_name[0]}."
         return f"{self.first_name} {self.last_name[0]}."
+    
+
+
+class UserProfile(models.Model):
+    user         = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    tree_public  = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.username} profile"
+
+
+class Invite(models.Model):
+    invited_by  = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invites_sent')
+    email       = models.EmailField()
+    token       = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    accepted    = models.BooleanField(default=False)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Invite to {self.email} from {self.invited_by.username}"
