@@ -53,13 +53,16 @@
   body.theme-light  .ancestor-link  { stroke:#a88840; }
 
   @media (max-width: 768px) {
+    .page-header {
+      padding: 0.5rem 0.75rem !important;
+      flex-wrap: wrap !important;
+    }
+    .page-header .page-title {
+      display: none !important;  /* hide title on mobile to save space */
+    }
     #tree-container {
       height: calc(100vh - 100px) !important;
       background-size: cover !important;
-      background-position: center center !important;
-    }
-    .page-header {
-      padding: 0.5rem 0.75rem !important;
     }
     #tooltip {
       display: none;
@@ -338,7 +341,7 @@ function redraw() {
       const container = document.getElementById('tree-container');
       const W = container.clientWidth;
       const tx = W/2 - d._x * currentScale;
-      const ty = 80 - d._y * currentScale;
+      const ty = 120 - d._y * currentScale;
       d3.select('#tree-svg').transition().duration(500)
         .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
     } else {
@@ -376,7 +379,7 @@ function redraw() {
     const fx = focusNode ? focusNode._x : 0;
     const fy = focusNode ? focusNode._y : 0;
     const tx = W/2 - fx * currentScale;
-    const ty = 80 - fy * currentScale;
+    const ty = 120 - fy * currentScale;
     svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(currentScale));
     zoomBehavior._initialized = true;
   } else if (savedTransform) {
