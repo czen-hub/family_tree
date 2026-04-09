@@ -4,8 +4,9 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib import messages
+from django.core.mail import send_mail
 from django.conf import settings
-from .models import FamilyMember, UserProfile, Invite, EditHistory
+from .models import FamilyMember, UserProfile, Invite, EditHistory, FamilyGroup, FamilyMembership
 from .forms import FamilyMemberForm
 import os
 
@@ -30,6 +31,16 @@ def register(request):
             if invite:
                 invite.accepted = True
                 invite.save()
+                # Auto-join the family group from the invite
+                if invite.family_group:
+                    FamilyMembership.objects.get_or_create(
+                        user=user,
+                        family_group=invite.family_group,
+                        defaults={'role': invite.role}
+                    )
+                    prof, _ = UserProfile.objects.get_or_create(user=user)
+                    prof.family_group = invite.family_group
+                    prof.save()
             return redirect('login')
     else:
         form = UserCreationForm()
@@ -66,10 +77,42 @@ def dashboard(request):
     return render(request, 'accounts/dashboard.html', {'member_data': member_data})
 
 
+def _get_user_group(user):
+    """Return the FamilyGroup the user belongs to, or None."""
+    prof = UserProfile.objects.filter(user=user).first()
+    return prof.family_group if prof else None
+
+
+def _user_can_edit(user, member):
+    """Return True if user is allowed to edit this member."""
+    if user.is_staff or user.is_superuser:
+        return True
+    user_group = _get_user_group(user)
+    if not user_group:
+        return False
+    if member.family_group != user_group:
+        return False
+    membership = FamilyMembership.objects.filter(user=user, family_group=user_group).first()
+    return membership and membership.role == 'admin'
+
+
 @login_required
 def family_list(request):
-    members = FamilyMember.objects.all().order_by('first_name', 'last_name')
-    return render(request, 'accounts/family_list.html', {'members': members})
+    q = request.GET.get('q', '')
+    user_group = _get_user_group(request.user)
+
+    if request.user.is_staff or request.user.is_superuser:
+        members = FamilyMember.objects.all()
+    elif user_group:
+        members = FamilyMember.objects.filter(family_group=user_group)
+    else:
+        members = FamilyMember.objects.all()
+
+    if q:
+        members = members.filter(first_name__icontains=q) | members.filter(last_name__icontains=q)
+
+    members = members.distinct().order_by('first_name', 'last_name')
+    return render(request, 'accounts/family_list.html', {'members': members, 'q': q})
 
 
 @login_required
@@ -128,6 +171,8 @@ def family_detail(request, pk):
             grandchildren = grandchildren | FamilyMember.objects.filter(pk=grandchild.pk)
     grandchildren = grandchildren.distinct()
 
+    can_edit = _user_can_edit(request.user, member)
+
     return render(request, 'accounts/family_detail.html', {
         'member': member,
         'siblings': siblings,
@@ -135,22 +180,36 @@ def family_detail(request, pk):
         'cousins': cousins,
         'nieces_nephews': nieces_nephews,
         'grandchildren': grandchildren,
+        'can_edit': can_edit,
     })
 
 
 @login_required
 def add_member(request):
+    user_group = _get_user_group(request.user)
+
+    # Check user has admin role in their group
+    if not request.user.is_staff and not request.user.is_superuser:
+        membership = FamilyMembership.objects.filter(
+            user=request.user, family_group=user_group, role='admin'
+        ).first()
+        if not membership:
+            messages.error(request, 'You do not have permission to add members.')
+            return redirect('family_list')
+
     if request.method == 'POST':
         form = FamilyMemberForm(request.POST, request.FILES)
         if form.is_valid():
             member = form.save(commit=False)
             member.user = request.user
+            member.family_group = user_group
             member.save()
             EditHistory.objects.create(
                 member=member,
                 member_name=str(member),
                 action='add',
                 changed_by=request.user,
+                family_group=user_group,
             )
             return redirect('family_list')
     else:
@@ -198,7 +257,8 @@ def _build_ancestors(member, depth=0):
     return data
 
 
-def _tree_json_response(member):
+def _tree_json_response(member, group=None):
+    qs = FamilyMember.objects.filter(family_group=group) if group else FamilyMember.objects.all()
     return {
         'focused_id': member.pk,
         'focused_name': str(member),
@@ -212,26 +272,32 @@ def _tree_json_response(member):
                 'last_name': m.last_name,
                 'photo': m.photo.url if m.photo else '',
             }
-            for m in FamilyMember.objects.all()
+            for m in qs
         ]
     }
 
 
 @login_required
 def family_tree_json(request):
+    user_group = _get_user_group(request.user)
     member_id = request.GET.get('id')
+
+    qs = FamilyMember.objects.filter(family_group=user_group) if (
+        user_group and not request.user.is_staff
+    ) else FamilyMember.objects.all()
+
     if member_id:
         try:
-            member = FamilyMember.objects.get(pk=member_id)
+            member = qs.get(pk=member_id)
         except FamilyMember.DoesNotExist:
             return JsonResponse({'error': 'Not found'}, status=404)
     else:
-        member = FamilyMember.objects.filter(father__isnull=True).order_by('date_of_birth').first()
+        member = qs.filter(father__isnull=True).order_by('date_of_birth').first()
         if not member:
-            member = FamilyMember.objects.first()
+            member = qs.first()
         if not member:
             return JsonResponse({'tree': None, 'ancestors': None})
-    return JsonResponse(_tree_json_response(member))
+    return JsonResponse(_tree_json_response(member, group=user_group if not request.user.is_staff else None))
 
 
 def public_tree_json(request, username):
@@ -243,19 +309,21 @@ def public_tree_json(request, username):
         return JsonResponse({'error': 'Not found'}, status=404)
     if not profile.tree_public:
         return JsonResponse({'error': 'This tree is private'}, status=403)
+    group = profile.family_group
     member_id = request.GET.get('id')
+    qs = FamilyMember.objects.filter(family_group=group) if group else FamilyMember.objects.all()
     if member_id:
         try:
-            member = FamilyMember.objects.get(pk=member_id)
+            member = qs.get(pk=member_id)
         except FamilyMember.DoesNotExist:
             return JsonResponse({'error': 'Not found'}, status=404)
     else:
-        member = FamilyMember.objects.filter(father__isnull=True).order_by('date_of_birth').first()
+        member = qs.filter(father__isnull=True).order_by('date_of_birth').first()
         if not member:
-            member = FamilyMember.objects.first()
+            member = qs.first()
         if not member:
             return JsonResponse({'tree': None, 'ancestors': None})
-    return JsonResponse(_tree_json_response(member))
+    return JsonResponse(_tree_json_response(member, group=group))
 
 
 def public_tree(request, username):
@@ -284,25 +352,31 @@ def invite_send(request):
     sent = False
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
+        role  = request.POST.get('role', 'viewer')
+        user_group = _get_user_group(request.user)
         if email:
-            invite = Invite.objects.create(invited_by=request.user, email=email)
+            invite = Invite.objects.create(
+                invited_by=request.user,
+                email=email,
+                family_group=user_group,
+                role=role,
+            )
             invite_url = request.build_absolute_uri(
                 f"/accounts/register/?token={invite.token}"
             )
-            import resend
-            resend.api_key = os.environ.get('RESEND_API_KEY', '')
-            resend.Emails.send({
-                "from": "onboarding@resend.dev",
-                "to": email,
-                "subject": "You are invited to join Link Root",
-                "text": (
+            send_mail(
+                subject='You are invited to join Link Root',
+                message=(
                     f"Hi,\n\n"
                     f"{request.user.username} has invited you to join Link Root "
                     f"— a family tree app.\n\n"
                     f"Click the link below to create your account:\n{invite_url}\n\n"
                     f"Tashi Delek!"
                 ),
-            })
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
             sent = True
     invites = Invite.objects.filter(invited_by=request.user).order_by('-created_at')
     return render(request, 'accounts/invite_send.html', {'sent': sent, 'invites': invites})
@@ -312,11 +386,15 @@ def invite_send(request):
 def profile(request):
     prof, _ = UserProfile.objects.get_or_create(user=request.user)
     invites = Invite.objects.filter(invited_by=request.user).order_by('-created_at')
-    total_members = FamilyMember.objects.count()
+    user_group = _get_user_group(request.user)
+    total_members = FamilyMember.objects.filter(
+        family_group=user_group
+    ).count() if user_group else FamilyMember.objects.count()
     return render(request, 'accounts/profile.html', {
         'profile': prof,
         'invites': invites,
         'total_members': total_members,
+        'user_group': user_group,
     })
 
 
@@ -329,6 +407,9 @@ def visual_tree(request):
 @login_required
 def edit_member(request, pk):
     member = get_object_or_404(FamilyMember, pk=pk)
+    if not _user_can_edit(request.user, member):
+        messages.error(request, 'You do not have permission to edit this member.')
+        return redirect('family_detail', pk=pk)
     if request.method == 'POST':
         form = FamilyMemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
@@ -345,6 +426,7 @@ def edit_member(request, pk):
                 action='edit',
                 changed_by=request.user,
                 notes=notes,
+                family_group=member.family_group,
             )
             return redirect('family_detail', pk=pk)
     else:
@@ -354,16 +436,17 @@ def edit_member(request, pk):
 
 @login_required
 def delete_member(request, pk):
-    if not request.user.is_superuser:
-        messages.error(request, 'Only administrators can delete members.')
-        return redirect('family_detail', pk=pk)
     member = get_object_or_404(FamilyMember, pk=pk)
+    if not _user_can_edit(request.user, member) and not request.user.is_superuser:
+        messages.error(request, 'You do not have permission to delete this member.')
+        return redirect('family_detail', pk=pk)
     if request.method == 'POST':
         EditHistory.objects.create(
             member=None,
             member_name=str(member),
             action='delete',
             changed_by=request.user,
+            family_group=member.family_group,
         )
         member.delete()
         messages.success(request, f'{member} has been deleted.')
@@ -373,5 +456,13 @@ def delete_member(request, pk):
 
 @login_required
 def edit_history(request):
-    history = EditHistory.objects.select_related('changed_by', 'member').all()[:100]
+    user_group = _get_user_group(request.user)
+    if request.user.is_staff or request.user.is_superuser:
+        history = EditHistory.objects.select_related('changed_by', 'member').all()[:100]
+    elif user_group:
+        history = EditHistory.objects.select_related('changed_by', 'member').filter(
+            family_group=user_group
+        )[:100]
+    else:
+        history = EditHistory.objects.none()
     return render(request, 'accounts/edit_history.html', {'history': history})

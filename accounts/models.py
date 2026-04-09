@@ -35,11 +35,38 @@ def get_tibetan_year(year):
     return f"{elements[element_index]} {animals[animal_index]}"
 
 
+class FamilyGroup(models.Model):
+    name       = models.CharField(max_length=200)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_groups')
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_public  = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+
+class FamilyMembership(models.Model):
+    ROLE_CHOICES = [
+        ('admin',  'Family Admin'),
+        ('viewer', 'Viewer'),
+    ]
+    user         = models.ForeignKey(User, on_delete=models.CASCADE, related_name='memberships')
+    family_group = models.ForeignKey(FamilyGroup, on_delete=models.CASCADE, related_name='memberships')
+    role         = models.CharField(max_length=10, choices=ROLE_CHOICES, default='viewer')
+
+    class Meta:
+        unique_together = ('user', 'family_group')
+
+    def __str__(self):
+        return f"{self.user.username} — {self.family_group.name} ({self.role})"
+
+
 class FamilyMember(models.Model):
-    user           = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    first_name     = models.CharField(max_length=100)
-    middle_name    = models.CharField(max_length=100, blank=True)
-    last_name      = models.CharField(max_length=100)
+    user         = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    family_group = models.ForeignKey(FamilyGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='members')
+    first_name   = models.CharField(max_length=100)
+    middle_name  = models.CharField(max_length=100, blank=True)
+    last_name    = models.CharField(max_length=100)
     gender         = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True, blank=True)
     marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS, default='Single')
     date_of_birth  = models.DateField(null=True, blank=True)
@@ -113,11 +140,12 @@ class EditHistory(models.Model):
     ]
     member      = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL,
                                     null=True, blank=True, related_name='history')
-    member_name = models.CharField(max_length=200)  # store name in case member deleted
-    action      = models.CharField(max_length=10, choices=ACTION_CHOICES)
-    changed_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    changed_at  = models.DateTimeField(auto_now_add=True)
-    notes       = models.TextField(blank=True)  # optional summary of what changed
+    member_name  = models.CharField(max_length=200)
+    action       = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    changed_by   = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    changed_at   = models.DateTimeField(auto_now_add=True)
+    notes        = models.TextField(blank=True)
+    family_group = models.ForeignKey(FamilyGroup, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ['-changed_at']
@@ -127,19 +155,22 @@ class EditHistory(models.Model):
 
 
 class UserProfile(models.Model):
-    user        = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    tree_public = models.BooleanField(default=False)
+    user         = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    tree_public  = models.BooleanField(default=False)
+    family_group = models.ForeignKey(FamilyGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='profiles')
 
     def __str__(self):
         return f"{self.user.username} profile"
 
 
 class Invite(models.Model):
-    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invites_sent')
-    email      = models.EmailField()
-    token      = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    accepted   = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    invited_by   = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invites_sent')
+    email        = models.EmailField()
+    token        = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    accepted     = models.BooleanField(default=False)
+    created_at   = models.DateTimeField(auto_now_add=True)
+    family_group = models.ForeignKey(FamilyGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='invites')
+    role         = models.CharField(max_length=10, choices=FamilyMembership.ROLE_CHOICES, default='viewer')
 
     def __str__(self):
         return f"Invite to {self.email} from {self.invited_by.username}"

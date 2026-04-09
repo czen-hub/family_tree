@@ -18,11 +18,22 @@
     <form method="post" style="display:flex; flex-direction:column; gap:0.75rem;">
       {% csrf_token %}
       <input type="hidden" name="next" value="{% url 'invite_send' %}">
+
       <div class="detail-row">
         <span class="detail-label">Email Address</span>
         <input type="email" name="email" required placeholder="family@example.com"
           style="flex:1; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.4rem 0.75rem; font-family:'Crimson Text',serif; font-size:1rem; outline:none;">
       </div>
+
+      <div class="detail-row">
+        <span class="detail-label">Role</span>
+        <select name="role"
+          style="flex:1; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.4rem 0.75rem; font-family:'Crimson Text',serif; font-size:1rem; outline:none;">
+          <option value="viewer">Viewer — can browse only</option>
+          <option value="admin">Family Admin — can add / edit / delete</option>
+        </select>
+      </div>
+
       <div style="text-align:right;">
         <button type="submit" class="btn" style="background:#7A2020; color:#f5ede0; border-color:#7A2020;">Send Invitation</button>
       </div>
@@ -35,9 +46,21 @@
     <ul class="member-list">
       {% for invite in invites %}
       <li style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-        <span class="text-link">{{ invite.email }}</span>
+        <span style="display:flex; flex-direction:column; gap:0.2rem;">
+          <span class="text-link">{{ invite.email }}</span>
+          {% if invite.family_group %}
+            <span style="font-size:0.78rem; color:var(--text-dim);">{{ invite.family_group.name }}</span>
+          {% endif %}
+        </span>
         <span style="display:flex; gap:0.5rem; align-items:center;">
+          <!-- role badge -->
+          {% if invite.role == 'admin' %}
+            <span style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; padding:0.15rem 0.5rem; background:rgba(139,26,0,0.07); border:1px solid var(--gold-dim); color:var(--gold-dim);">Admin</span>
+          {% else %}
+            <span style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; padding:0.15rem 0.5rem; background:var(--surface2); border:1px solid var(--border); color:var(--text-dim);">Viewer</span>
+          {% endif %}
           <span style="font-size:0.8rem; color:var(--text-dim);">{{ invite.created_at|date:"M d, Y" }}</span>
+          <!-- status badge -->
           {% if invite.accepted %}
             <span style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; padding:0.15rem 0.5rem; background:rgba(0,120,60,0.08); border:1px solid #4a8a60; color:#4a8a60;">Accepted</span>
           {% else %}

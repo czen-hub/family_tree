@@ -35,6 +35,26 @@
         <span class="detail-label">Total Members</span>
         <span class="detail-value">{{ total_members }}</span>
       </div>
+      {% if user_group %}
+      <div class="detail-row">
+        <span class="detail-label">Family Group</span>
+        <span class="detail-value">{{ user_group.name }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Your Role</span>
+        <span class="detail-value">
+          {% with membership=request.user.memberships.first %}
+            {% if membership %}
+              <span style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em; padding:0.2rem 0.6rem;
+                {% if membership.role == 'admin' %}background:rgba(139,26,0,0.07); border:1px solid var(--gold-dim); color:var(--gold-dim);
+                {% else %}background:var(--surface2); border:1px solid var(--border); color:var(--text-dim);{% endif %}">
+                {{ membership.get_role_display }}
+              </span>
+            {% endif %}
+          {% endwith %}
+        </span>
+      </div>
+      {% endif %}
     </div>
 
     <!-- Privacy Settings -->
